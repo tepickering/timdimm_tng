@@ -76,6 +76,7 @@ cam.set_ROI(left, top, 400, 400)
 time.sleep(1)
 cam.record_duration(15, savedir="/home/timdimm", filename="seeing.ser")
 time.sleep(17)
+log.info(f"ROI: {left}, {top}, 400, 400; exptime: {exptime}")
 
 try:
     seeing_data = analyze_dimm_cube("/home/timdimm/seeing.ser", airmass=pointing_status['airmass'])
