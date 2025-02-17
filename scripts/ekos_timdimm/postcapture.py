@@ -72,6 +72,8 @@ else:
 cam.stream_exposure(exptime)
 left = max(0, int(x - 200))
 top = max(0, int(y - 200))
+left = min(left, 1608 - 400)
+top = min(top, 1104 - 400)
 cam.set_ROI(left, top, 400, 400)
 time.sleep(1)
 cam.record_duration(15, savedir="/home/timdimm", filename="seeing.ser")
