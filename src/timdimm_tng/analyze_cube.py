@@ -318,7 +318,7 @@ def analyze_dimm_cube(
             ap_size = 15
 
     apertures, fig = find_apertures(
-        np.mean(cube["data"][:2], axis=0),
+        np.mean(cube["data"][:5], axis=0),
         brightest=napertures,
         ap_size=ap_size,
         plot=plot,

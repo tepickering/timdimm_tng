@@ -64,14 +64,10 @@ if len(centroids) != 2:
 x, y = np.mean(ap_stats.centroid, axis=0)
 
 # center apertures in a 400x400 ROI and grab a 15 second cube
-if ap_stats.max.min() > 8000:
-    exptime = 0.0001
-elif ap_stats.max.min() > 4000:
-    exptime = 0.0002
-elif ap_stats.max.min() < 500:
+if ap_stats.max.min() < 500:
     exptime = 0.002
 else:
-    exptime = 0.0005
+    exptime = 0.001
 
 cam.stream_exposure(exptime)
 left = max(0, int(x - 200))
