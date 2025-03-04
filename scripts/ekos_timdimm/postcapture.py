@@ -48,7 +48,7 @@ cam.set_prop("CCD_VIDEO_STREAM", "STREAM_OFF", value="On")
 time.sleep(1)
 
 # grab a short full-frame cube
-cam.stream_exposure(0.001)
+cam.stream_exposure(0.005)
 cam.set_ROI(0, 0, 1608, 1104)
 cam.record_frames(10, savedir="/home/timdimm", filename="find_boxes.ser")
 time.sleep(1)
@@ -64,7 +64,7 @@ if len(centroids) != 2:
 x, y = np.mean(ap_stats.centroid, axis=0)
 
 # center apertures in a 400x400 ROI and grab a 15 second cube
-if ap_stats.max.min() < 500:
+if ap_stats.max.min() < 1500:
     exptime = 0.002
 else:
     exptime = 0.001
