@@ -18,7 +18,7 @@ def parse_salt_xml():
     try:
         sock = urlopen(TCS_URL)
         with open("tcs.xml", "w") as out:
-            out.write(sock.read().decode("ascii"))
+            out.write(sock.read().decode("latin-1"))
 
     except URLError:
         e["Valid"] = False
