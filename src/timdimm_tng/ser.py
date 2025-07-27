@@ -196,7 +196,7 @@ def load_ser_file(filename):
 
         # Trailer starts at byte offset: 178 + 8_FrameCount x 5_ImageWidth x 6_ImageHeigth x BytePerPixel.
         # Trailer contains Date / Integer_64 (little-endian) time stamps in UTC for every image frame.
-        #trailer_buf = fp.read()
-        #output["frame_times"] = parse_time(np.frombuffer(trailer_buf, dtype=np.uint64))
+        trailer_buf = fp.read()
+        output["frame_times"] = parse_time(np.frombuffer(trailer_buf, dtype=np.uint64))
 
         return output
