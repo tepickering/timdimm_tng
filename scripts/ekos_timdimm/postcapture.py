@@ -70,8 +70,8 @@ else:
     exptime = 0.001
 
 cam.stream_exposure(exptime)
-left = max(0, int(x - 200))
-top = max(0, int(y - 200))
+left = max(1, int(x - 200))
+top = max(1, int(y - 200))
 left = min(left, 1608 - 400)
 top = min(top, 1104 - 400)
 cam.set_ROI(left, top, 400, 400)
