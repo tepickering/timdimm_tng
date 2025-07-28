@@ -1,1637 +1,638 @@
 <?xml version="1.0" encoding="utf-8"?>
-<SchedulerList version="1.5">
-	<Profile>timdimm</Profile>
-	<Job>
-		<Name>Canopus</Name>
-		<Priority>17</Priority>
-		<Coordinates>
-			<J2000RA>6.3991971886000005</J2000RA>
-			<J2000DE>-52.695661384</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Achernar</Name>
-		<Priority>13</Priority>
-		<Coordinates>
-			<J2000RA>1.628568188866667</J2000RA>
-			<J2000DE>-57.236752806</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Fomalhaut</Name>
-		<Priority>10</Priority>
-		<Coordinates>
-			<J2000RA>22.960846181400004</J2000RA>
-			<J2000DE>-29.622237033</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Mimosa</Name>
-		<Priority>9</Priority>
-		<Coordinates>
-			<J2000RA>12.795352437466669</J2000RA>
-			<J2000DE>-59.688771996</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Shaula</Name>
-		<Priority>8</Priority>
-		<Coordinates>
-			<J2000RA>17.56014447893334</J2000RA>
-			<J2000DE>-37.103823551</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Miaplacidus</Name>
-		<Priority>8</Priority>
-		<Coordinates>
-			<J2000RA>9.219993738866668</J2000RA>
-			<J2000DE>-69.717207597</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alnair</Name>
-		<Priority>8</Priority>
-		<Coordinates>
-			<J2000RA>22.137217980000003</J2000RA>
-			<J2000DE>-46.96097438</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Wezen</Name>
-		<Priority>7</Priority>
-		<Coordinates>
-			<J2000RA>7.139856680944668</J2000RA>
-			<J2000DE>-26.39319957889</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Kaus Australis</Name>
-		<Priority>7</Priority>
-		<Coordinates>
-			<J2000RA>18.402866223333337</J2000RA>
-			<J2000DE>-34.38461649</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>The Sco</Name>
-		<Priority>7</Priority>
-		<Coordinates>
-			<J2000RA>17.62198266666667</J2000RA>
-			<J2000DE>-42.997841</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Atria</Name>
-		<Priority>7</Priority>
-		<Coordinates>
-			<J2000RA>16.811081967333337</J2000RA>
-			<J2000DE>-69.02771185</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Peacock</Name>
-		<Priority>7</Priority>
-		<Coordinates>
-			<J2000RA>20.427460291333336</J2000RA>
-			<J2000DE>-56.73508973</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Nunki</Name>
-		<Priority>6</Priority>
-		<Coordinates>
-			<J2000RA>18.921090693733337</J2000RA>
-			<J2000DE>-26.296724115</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>The Cen</Name>
-		<Priority>6</Priority>
-		<Coordinates>
-			<J2000RA>14.111381133333335</J2000RA>
-			<J2000DE>-36.369831</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Gam Cen</Name>
-		<Priority>6</Priority>
-		<Coordinates>
-			<J2000RA>12.69195557806667</J2000RA>
-			<J2000DE>-48.959871515</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Suhail</Name>
-		<Priority>6</Priority>
-		<Coordinates>
-			<J2000RA>9.133266075866668</J2000RA>
-			<J2000DE>-43.432590909</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Aspidiske</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>9.284835238111334</J2000RA>
-			<J2000DE>-59.27523202917</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Eps Sco</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>16.836058559083337</J2000RA>
-			<J2000DE>-34.29323159306</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alp Lup</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>14.698821051833336</J2000RA>
-			<J2000DE>-47.38819874611</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Eps Cen</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>13.664793815400001</J2000RA>
-			<J2000DE>-53.466391146</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Eta Cen</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>14.59178448916667</J2000RA>
-			<J2000DE>-42.15782521722</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Ankaa</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>0.4380698343333334</J2000RA>
-			<J2000DE>-42.305987194</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Kap Sco</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>17.708132000000003</J2000RA>
-			<J2000DE>-39.029983076</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Aludra</Name>
-		<Priority>5</Priority>
-		<Coordinates>
-			<J2000RA>7.401583966733335</J2000RA>
-			<J2000DE>-29.303105508</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Kap Vel</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>9.368560447222002</J2000RA>
-			<J2000DE>-55.01066713417</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Zet Cen</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>13.925662679933335</J2000RA>
-			<J2000DE>-47.288374511</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Del Cen</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>12.139304899250003</J2000RA>
-			<J2000DE>-50.72242739278</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Phact</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>5.660816953333335</J2000RA>
-			<J2000DE>-34.07410972</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Bet Crv</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>12.573120811787085</J2000RA>
-			<J2000DE>-23.39676021620222</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Bet Lup</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>14.975534823333337</J2000RA>
-			<J2000DE>-43.133963849</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alp Mus</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>12.619727191278002</J2000RA>
-			<J2000DE>-69.13556478861</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Lesath</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>17.512732534111336</J2000RA>
-			<J2000DE>-37.29581347528</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Mu  Vel</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>9.782224866666668</J2000RA>
-			<J2000DE>-47.511578</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Pi Pup</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>7.285710217000001</J2000RA>
-			<J2000DE>-37.097471154</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Kaus Media</Name>
-		<Priority>4</Priority>
-		<Coordinates>
-			<J2000RA>18.349900804000004</J2000RA>
-			<J2000DE>-29.82810226</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Iot Cen</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>13.343281337669307</J2000RA>
-			<J2000DE>-36.712304581225</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>The Car</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>10.715952800000002</J2000RA>
-			<J2000DE>-64.394472</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Bet Hyi</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>0.4291862103333334</J2000RA>
-			<J2000DE>-77.25424612</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Del Cru</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>12.252421799741</J2000RA>
-			<J2000DE>-58.74892407683834</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Kaus Borealis</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>18.466177977333338</J2000RA>
-			<J2000DE>-25.4216985</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Rho Pup</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>8.125735784305334</J2000RA>
-			<J2000DE>-24.30432442944</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Tau Sco</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>16.59804245916667</J2000RA>
-			<J2000DE>-28.2160170875</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Bet Ara</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>17.42166327925509</J2000RA>
-			<J2000DE>-55.52988168777777</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Bet TrA</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>15.919045018000004</J2000RA>
-			<J2000DE>-63.43072654</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alp Hyi</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>1.979482939839223</J2000RA>
-			<J2000DE>-61.56982215319751</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alp Tuc</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>22.30836456591492</J2000RA>
-			<J2000DE>-60.25962954474834</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Sig Sco</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>16.353143253722003</J2000RA>
-			<J2000DE>-25.59279207667</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Pi  Sco</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>15.980864788278003</J2000RA>
-			<J2000DE>-26.114107945</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Gam TrA</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>15.315161469237504</J2000RA>
-			<J2000DE>-68.67954667374444</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Pi Sgr</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>19.162731368333336</J2000RA>
-			<J2000DE>-21.02361398194</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Tau Pup</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>6.832269207025252</J2000RA>
-			<J2000DE>-50.61453869751139</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alp Ara</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>17.53069209116667</J2000RA>
-			<J2000DE>-49.87614501139</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Alnasl</Name>
-		<Priority>3</Priority>
-		<Coordinates>
-			<J2000RA>18.09680224966667</J2000RA>
-			<J2000DE>-30.42408984944</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Gam Hya</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>13.315360469221751</J2000RA>
-			<J2000DE>-23.171514006915</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Gam Gru</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>21.89881008350734</J2000RA>
-			<J2000DE>-37.36487221701779</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Omi2 CMa</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>7.050408920666667</J2000RA>
-			<J2000DE>-23.83329231</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Furud</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>6.338553344388668</J2000RA>
-			<J2000DE>-30.06336673389</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Iot1 Sco</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>17.793078091333335</J2000RA>
-			<J2000DE>-40.12699704</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Mu  Cen</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>12.214966172983333</J2000RA>
-			<J2000DE>-44.47111811384001</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<Job>
-		<Name>Mu  Sco</Name>
-		<Priority>2</Priority>
-		<Coordinates>
-			<J2000RA>17.599706826322002</J2000RA>
-			<J2000DE>-44.72771344381</J2000DE>
-		</Coordinates>
-		<PositionAngle></PositionAngle>
-		<Sequence>/home/timdimm/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
-		<StartupCondition>
-			<Condition>ASAP</Condition>
-		</StartupCondition>
-		<Constraints>
-			<Constraint value="45">MinimumAltitude</Constraint>
-			<Constraint value="20">MoonSeparation</Constraint>
-			<Constraint>EnforceWeather</Constraint>
-			<Constraint>EnforceTwilight</Constraint>
-		</Constraints>
-		<CompletionCondition>
-			<Condition>Loop</Condition>
-		</CompletionCondition>
-		<Steps>
-			<Step>Track</Step>
-			<Step>Align</Step>
-			<Step>Guide</Step>
-		</Steps>
-	</Job>
-	<SchedulerAlgorithm value="1"></SchedulerAlgorithm>
-	<ErrorHandlingStrategy value="1">
-		<delay>0</delay>
-	</ErrorHandlingStrategy>
-	<StartupProcedure>
-		<Procedure value="/home/timdimm/timdimm_tng/scripts/ekos/startup.py">StartupScript</Procedure>
-		<Procedure>UnparkDome</Procedure>
-	</StartupProcedure>
-	<ShutdownProcedure>
-		<Procedure>ParkMount</Procedure>
-		<Procedure>ParkDome</Procedure>
-		<Procedure value="/home/timdimm/timdimm_tng/scripts/ekos/shutdown.py">ShutdownScript</Procedure>
-	</ShutdownProcedure>
+<SchedulerList version="2.1">
+    <Profile>timdimm_sim</Profile>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Sirius</Name>
+        <Priority>1</Priority>
+        <Coordinates>
+            <J2000RA>6.752477022200002</J2000RA>
+            <J2000DE>-16.716115861</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Canopus</Name>
+        <Priority>4</Priority>
+        <Coordinates>
+            <J2000RA>6.3991971886000005</J2000RA>
+            <J2000DE>-52.695661384</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Procyon</Name>
+        <Priority>8</Priority>
+        <Coordinates>
+            <J2000RA>7.655033193866668</J2000RA>
+            <J2000DE>5.224987557</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Achernar</Name>
+        <Priority>8</Priority>
+        <Coordinates>
+            <J2000RA>1.628568188866667</J2000RA>
+            <J2000DE>-57.236752806</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Spica</Name>
+        <Priority>10</Priority>
+        <Coordinates>
+            <J2000RA>13.41988315746667</J2000RA>
+            <J2000DE>-11.161319485</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Fomalhaut</Name>
+        <Priority>11</Priority>
+        <Coordinates>
+            <J2000RA>22.960846181400004</J2000RA>
+            <J2000DE>-29.622237033</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Mimosa</Name>
+        <Priority>12</Priority>
+        <Coordinates>
+            <J2000RA>12.795352437466669</J2000RA>
+            <J2000DE>-59.688771996</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Shaula</Name>
+        <Priority>13</Priority>
+        <Coordinates>
+            <J2000RA>17.56014447893334</J2000RA>
+            <J2000DE>-37.103823551</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Bellatrix</Name>
+        <Priority>13</Priority>
+        <Coordinates>
+            <J2000RA>5.418850903800001</J2000RA>
+            <J2000DE>6.349703264</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Miaplacidus</Name>
+        <Priority>13</Priority>
+        <Coordinates>
+            <J2000RA>9.219993738866668</J2000RA>
+            <J2000DE>-69.717207597</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Alnilam</Name>
+        <Priority>13</Priority>
+        <Coordinates>
+            <J2000RA>5.603559262733334</J2000RA>
+            <J2000DE>-1.201919136</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Alnair</Name>
+        <Priority>13</Priority>
+        <Coordinates>
+            <J2000RA>22.137217980000003</J2000RA>
+            <J2000DE>-46.96097438</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Wezen</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>7.139856680944668</J2000RA>
+            <J2000DE>-26.39319957889</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Kaus Australis</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>18.402866223333337</J2000RA>
+            <J2000DE>-34.38461649</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>The Sco</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>17.62198266666667</J2000RA>
+            <J2000DE>-42.997841</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Atria</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>16.811081967333337</J2000RA>
+            <J2000DE>-69.02771185</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Peacock</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>20.427460291333336</J2000RA>
+            <J2000DE>-56.73508973</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Mirzam</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>6.378329264638667</J2000RA>
+            <J2000DE>-17.95591870889</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Alphard</Name>
+        <Priority>14</Priority>
+        <Coordinates>
+            <J2000RA>9.459789639733335</J2000RA>
+            <J2000DE>-8.658599532</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Nunki</Name>
+        <Priority>15</Priority>
+        <Coordinates>
+            <J2000RA>18.921090693733337</J2000RA>
+            <J2000DE>-26.296724115</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Diphda</Name>
+        <Priority>15</Priority>
+        <Coordinates>
+            <J2000RA>0.7264919157333335</J2000RA>
+            <J2000DE>-17.986606316</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>The Cen</Name>
+        <Priority>15</Priority>
+        <Coordinates>
+            <J2000RA>14.111381133333335</J2000RA>
+            <J2000DE>-36.369831</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <Job>
+        <JobType lead="true"></JobType>
+        <Name>Saiph</Name>
+        <Priority>15</Priority>
+        <Coordinates>
+            <J2000RA>5.7959413445553345</J2000RA>
+            <J2000DE>-9.66960491861</J2000DE>
+        </Coordinates>
+        <PositionAngle></PositionAngle>
+        <Sequence>/Users/tim/MMT/timdimm_tng/src/timdimm_tng/templates/timdimm_sequence.esq</Sequence>
+        <StartupCondition>
+            <Condition>ASAP</Condition>
+        </StartupCondition>
+        <Constraints>
+            <Constraint value="45">MinimumAltitude</Constraint>
+            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint>EnforceWeather</Constraint>
+            <Constraint>EnforceTwilight</Constraint>
+        </Constraints>
+        <CompletionCondition>
+            <Condition>Loop</Condition>
+        </CompletionCondition>
+        <Steps>
+            <Step>Track</Step>
+            <Step>Align</Step>
+        </Steps>
+    </Job>
+    <SchedulerAlgorithm value="1"></SchedulerAlgorithm>
+    <ErrorHandlingStrategy value="1">
+        <delay>0</delay>
+    </ErrorHandlingStrategy>
+    <StartupProcedure>
+        <Procedure value="/home/tim/MMT/timdimm_tng/scripts/ekos/startup.py">StartupScript</Procedure>
+        <Procedure>UnparkDome</Procedure>
+    </StartupProcedure>
+    <ShutdownProcedure>
+        <Procedure>ParkMount</Procedure>
+        <Procedure>ParkDome</Procedure>
+        <Procedure value="/home/tim/MMT/timdimm_tng/scripts/ekos/shutdown.py">ShutdownScript</Procedure>
+    </ShutdownProcedure>
 </SchedulerList>
