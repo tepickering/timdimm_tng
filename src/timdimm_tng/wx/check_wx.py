@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import astropy.units as u
+from astropy.time import Time
+
 #from timdimm_tng.wx.lcogt_weather import get_weather as lcogt_wx
 # from timdimm_tng.wx.lcogt_bwc2_weather import get_weather as lcogt_bwc2_wx
 # from timdimm_tng.wx.gfz_weather import get_weather as gfz_wx
@@ -19,21 +22,28 @@ def get_current_conditions():
     """
     get the current weather conditions from the various weather stations
     """
+    checks = {
+        "humidity": False,
+        "wind": False,
+    }
+
     # get the current weather conditions from the SAAO IO weather information system
     wx_dict = saao_io_wx()
+
+    # check if data is recent
+    td = Time(wx_dict["timestamp"]) - Time.now()
+    if abs(td) > 10 * u.minute:
+        wx_dict["Valid"] = False
 
     # get the current weather conditions from the SALT weather station
     wx_dict["SALT"] = salt_wx()
 
-    # check against operational limits
-    rh = float(wx_dict["humidity"])
-    wind = float(wx_dict["wind"])
-    humidity_check = rh < WX_LIMITS["humidity"]
-    wind_check = wind < WX_LIMITS["wind"]
-    checks = {
-        "humidity": humidity_check,
-        "wind": wind_check,
-    }
+    if wx_dict["Valid"]:
+        # check against operational limits
+        rh = float(wx_dict["humidity"])
+        wind = float(wx_dict["wind"])
+        checks["humidity"] = rh < WX_LIMITS["humidity"]
+        checks["wind"] = wind < WX_LIMITS["wind"]
 
     return wx_dict, checks
 
