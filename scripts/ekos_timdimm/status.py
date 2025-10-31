@@ -68,15 +68,20 @@ sun_azel = sun_coord.transform_to(AltAz(obstime=Time.now(), location=SAAO))
 try:
     wx, safety_checks = get_current_conditions()
 
-    # if safety_checks['monet']:
-    #     open_ok = True
-    #     log.info("MONET safety check passed. Safe to open.")
-    #     wx_message += "MONET says it's ok to open; "
-
-    if safety_checks['salt']:
-        open_ok = True
-        log.info("SALT safety check passed. Safe to open.")
-        wx_message += "SALT says it's ok to open; "
+    if wx["Valid"]:
+        if safety_checks["humidity"] and safety_checks["wind"]:
+            open_ok = True
+            log.info("RH and wind safety checks from SAAO IO passed. Safe to open.")
+            wx_message += "SAAO IO says it's ok to open; "
+    else:
+        log.warning("SAAO IO weather data invalid. Checking SALT status...")
+        if wx["SALT"]["Valid"]:
+            if wx["SALT"]["Open"]:
+                open_ok = True
+                log.info("SALT weather station says it's safe to open.")
+                wx_message += "SALT says it's ok to open; "
+            else:
+                log.warning("SALT weather data invalid. Not safe to open.")
 
 except Exception as e:
     log.error(f"Can't get current conditions: {e}")
@@ -102,7 +107,7 @@ if stopfile.exists():
     wx_message += "Manual stop forced"
 
 if open_ok:
-    wx_message = "Safe conditions according to either SALT or MONET"
+    wx_message = "Safe conditions according to either SALT or SAAO IO"
     log.info("Safe to be open")
     try:
         log.info("Sending ox wagon open command to keep it open...")
