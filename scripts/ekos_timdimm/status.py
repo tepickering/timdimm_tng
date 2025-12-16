@@ -68,7 +68,7 @@ sun_azel = sun_coord.transform_to(AltAz(obstime=Time.now(), location=SAAO))
 try:
     wx, safety_checks = get_current_conditions()
 
-    if wx["Valid"]:
+    if wx["SAAO-IO"]["Valid"]:
         if safety_checks["humidity"] and safety_checks["wind"]:
             open_ok = True
             log.info("RH and wind safety checks from SAAO IO passed. Safe to open.")
