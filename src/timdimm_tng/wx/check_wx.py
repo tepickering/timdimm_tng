@@ -41,8 +41,10 @@ def get_current_conditions():
         # check against operational limits
         rh = float(wx_dict["SAAO-IO"]["humidity"])
         wind = float(wx_dict["SAAO-IO"]["wind"])
-        checks["humidity"] = rh < WX_LIMITS["humidity"]
-        checks["wind"] = wind < WX_LIMITS["wind"]
+        wind_warn = bool(wx_dict["SAAO-IO"]["wind_warn"])
+        humidity_warn = bool(wx_dict["SAAO-IO"]["humidity_warn"])
+        checks["humidity"] = (rh < WX_LIMITS["humidity"]) and not humidity_warn
+        checks["wind"] = (wind < WX_LIMITS["wind"]) and not wind_warn
 
     # get the current weather conditions from the SALT weather station
     wx_dict["SALT"] = salt_wx()

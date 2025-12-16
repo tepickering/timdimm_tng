@@ -64,25 +64,34 @@ open_ok = False
 sun_coord = get_sun(Time.now())
 sun_azel = sun_coord.transform_to(AltAz(obstime=Time.now(), location=SAAO))
 
-# check weather and if SALT or MONET think it's safe to open
+# check weather and if SALT or SAAO IO think it's safe to open
 try:
     wx, safety_checks = get_current_conditions()
+    saao_open_ok = False
+    salt_open_ok = False
 
     if wx["SAAO-IO"]["Valid"]:
         if safety_checks["humidity"] and safety_checks["wind"]:
-            open_ok = True
+            saao_open_ok = True
             log.info("RH and wind safety checks from SAAO IO passed. Safe to open.")
             wx_message += "SAAO IO says it's ok to open; "
+        else:
+            log.warning(f"Weather conditions unsafe according to SAAO IO: Wind={wx["SAAO-IO"]["wind"]} RH={wx["SAAO-IO"]["humidity"]}")
     else:
-        log.warning("SAAO IO weather data invalid. Checking SALT status...")
-        if wx["SALT"]["Valid"]:
-            if wx["SALT"]["Open"]:
-                open_ok = True
-                log.info("SALT weather station says it's safe to open.")
-                wx_message += "SALT says it's ok to open; "
-            else:
-                log.warning("SALT weather data invalid. Not safe to open.")
+        log.warning("SAAO IO weather data invalid.")
 
+    if wx["SALT"]["Valid"]:
+        if wx["SALT"]["Open"]:
+            salt_open_ok = True
+            log.info("SALT says it's safe to open.")
+            wx_message += "SALT says it's ok to open; "
+        else:
+            log.warning("SALT isn't open.")
+    else:
+        log.warning("SALT weather data invalid.")
+
+    # final decision: if either station says it's ok, we're ok to be open
+    open_ok = saao_open_ok or salt_open_ok
 except Exception as e:
     log.error(f"Can't get current conditions: {e}")
     open_ok = False
