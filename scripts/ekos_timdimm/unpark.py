@@ -26,7 +26,7 @@ log.addHandler(handler)
 # as toggling the checkbox in the ekos interface.
 bus = sdbus.sd_bus_open_user()
 mount = Mount(bus=bus)
-mount.set_meridian_flip_values(activate=True, hours=0.1)
+mount.set_meridian_flip_values(activate=True, hours=1.0)
 
 dome = OxWagon()
 
