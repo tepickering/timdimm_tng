@@ -652,6 +652,7 @@
     <StartupProcedure>
         <Procedure value="/home/tim/MMT/timdimm_tng/scripts/ekos/startup.py">StartupScript</Procedure>
         <Procedure>UnparkDome</Procedure>
+        <Procedure>UnParkMount</Procedure>
     </StartupProcedure>
     <ShutdownProcedure>
         <Procedure>ParkMount</Procedure>
