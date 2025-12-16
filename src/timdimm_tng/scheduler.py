@@ -1,6 +1,5 @@
-import os
 import json
-import pkg_resources
+import importlib
 
 from collections import UserDict
 
@@ -12,6 +11,9 @@ from astropy.table import Table
 import astropy.units as u
 
 
+TIMDIMM_DATA_DIR = importlib.resources.files(__name__) / "data"
+TEMPLATES =  importlib.resources.files(__name__) / "templates"
+
 class ScheduleBase(UserDict):
     """
     Base class for INDI/Ekos scheduler configurations with utilities to read/write
@@ -20,9 +22,7 @@ class ScheduleBase(UserDict):
 
     def from_json(
         self,
-        filename=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "timdimm_sequence_template.json")
-        ),
+        filename= TEMPLATES / "timdimm_sequence_template.json"
     ):
         """
         Instantiate from a JSON file
@@ -42,7 +42,7 @@ class ScheduleBase(UserDict):
         Convert internal dict to XML and write to file
         """
         with open(filename, "w") as fp:
-            fp.write(xmltodict.unparse(self.data, pretty=True))
+            fp.write(xmltodict.unparse(self.data, pretty=True, indent="    " ))
 
     def to_json(self, filename="sequence.json"):
         """
@@ -59,9 +59,7 @@ class Sequence(ScheduleBase):
 
     def __init__(
         self,
-        template=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "timdimm_sequence.esq")
-        ),
+        template=TEMPLATES / "timdimm_sequence_template.esq",
     ):
         if "json" in Path(template).suffix.lower():
             self.from_json(filename=template)
@@ -80,12 +78,8 @@ class Observation(ScheduleBase):
         ra=0.0,
         dec=0.0,
         priority=10,
-        sequence=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "timdimm_sequence.esq")
-        ),
-        template=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "timdimm_schedule_template.esl")
-        ),
+        sequence=TEMPLATES / "timdimm_sequence.esq",
+        template=TEMPLATES / "timdimm_schedule_template.esl",
     ):
         if "json" in Path(template).suffix.lower():
             self.from_json(filename=template)
@@ -113,9 +107,7 @@ class Schedule(ScheduleBase):
 
     def __init__(
         self,
-        template=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "timdimm_schedule_template.esl")
-        ),
+        template=TEMPLATES / "timdimm_schedule_template.esl",
     ):
         if "json" in Path(template).suffix.lower():
             self.from_json(filename=template)
@@ -145,16 +137,16 @@ def mag_to_priority(mag):
     return priority
 
 
-def make_full_schedule(outfile="full_schedule.esl"):
+def make_timdimm_schedule(outfile="timdimm_schedule.esl"):
     sched = Schedule()
-    stars = Table.read(pkg_resources.resource_filename(__name__, "star_list.ecsv"))
+    stars = Table.read(TIMDIMM_DATA_DIR / "star_list.ecsv")
 
     # looks like Ekos only used the order of the schedule and doesn't factor in priority.
     # so we sort by brightness so it'll always stick with the brightest star available.
     stars.sort(keys="Vmag")
     for star in stars:
-        # given the GTO900's tracking issues, keep things south of -20 to mitigate them
-        if star["Coordinates"].dec.value < -20.0:
+        # Don't have to go much below 2nd mag to get enough stars
+        if star["Vmag"] < 2.1:
             priority = mag_to_priority(star["Vmag"])
             obs = Observation(
                 target=star["Name"],
@@ -172,11 +164,9 @@ def make_full_schedule(outfile="full_schedule.esl"):
 
 def make_hdimm_schedule(outfile="hdimm_schedule.esl"):
     sched = Schedule(
-        template=pkg_resources.resource_filename(
-            __name__, os.path.join("templates", "hdimm_schedule_template.esl")
-        )
+        template=TEMPLATES / "hdimm_schedule_template.esl",
     )
-    stars = Table.read(pkg_resources.resource_filename(__name__, "star_list_full.ecsv"))
+    stars = Table.read(TIMDIMM_DATA_DIR /  "star_list_full.ecsv")
 
     # looks like Ekos only used the order of the schedule and doesn't factor in priority.
     # so we sort by brightness so it'll always stick with the brightest star available.
@@ -189,12 +179,8 @@ def make_hdimm_schedule(outfile="hdimm_schedule.esl"):
                 ra=star["Coordinates"].ra.to(u.hourangle).value,
                 dec=star["Coordinates"].dec.value,
                 priority=priority,
-                sequence=pkg_resources.resource_filename(
-                    __name__, os.path.join("templates", "hdimm_sequence.esq")
-                ),
-                template=pkg_resources.resource_filename(
-                    __name__, os.path.join("templates", "hdimm_schedule_template.esl")
-                ),
+                sequence=TEMPLATES / "hdimm_sequence.esq",
+                template=TEMPLATES / "hdimm_schedule_template.esl",
             )
             sched.add_observation(dict(obs))
 

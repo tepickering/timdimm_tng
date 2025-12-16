@@ -34,7 +34,6 @@ dome.reset()
 dome.open()
 
 log.info("Unparking Ox Wagon...")
-time.sleep(60)
 
 with open(Path.home() / "ox_wagon_status.txt", 'w') as coords:
     coords.truncate()

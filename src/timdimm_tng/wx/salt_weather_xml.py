@@ -3,7 +3,6 @@
 import math
 from xml.dom import minidom
 from urllib.request import urlopen
-from urllib.error import URLError
 import datetime
 
 
@@ -17,14 +16,12 @@ def parse_salt_xml():
 
     try:
         sock = urlopen(TCS_URL)
-        with open("tcs.xml", "w") as out:
-            out.write(sock.read().decode("latin-1"))
+        dom = minidom.parseString(sock.read().decode("latin-1"))
 
-    except URLError:
+    except Exception as error:
         e["Valid"] = False
+        e["Error"] = str(error)
         return e
-
-    dom = minidom.parse("tcs.xml")
 
     def getText(nodelist):
         rc = []
