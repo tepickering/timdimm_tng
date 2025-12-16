@@ -28,22 +28,24 @@ def get_current_conditions():
     }
 
     # get the current weather conditions from the SAAO IO weather information system
-    wx_dict = saao_io_wx()
+    wx_dict = {}
+    wx_dict["SAAO-IO"] = saao_io_wx()
 
     # check if data is recent
-    td = Time(wx_dict["timestamp"]) - Time.now()
-    if abs(td) > 10 * u.minute:
-        wx_dict["Valid"] = False
+    td = Time(wx_dict["SAAO-IO"]["timestamp"]) - Time.now()
+    # hack to avoid messing with timezones for SAAO timestamps
+    if abs(td - 120 * u.minute) > 10 * u.minute:
+        wx_dict["SAAO-IO"]["Valid"] = False
+
+    if wx_dict["SAAO-IO"]["Valid"]:
+        # check against operational limits
+        rh = float(wx_dict["SAAO-IO"]["humidity"])
+        wind = float(wx_dict["SAAO-IO"]["wind"])
+        checks["humidity"] = rh < WX_LIMITS["humidity"]
+        checks["wind"] = wind < WX_LIMITS["wind"]
 
     # get the current weather conditions from the SALT weather station
     wx_dict["SALT"] = salt_wx()
-
-    if wx_dict["Valid"]:
-        # check against operational limits
-        rh = float(wx_dict["humidity"])
-        wind = float(wx_dict["wind"])
-        checks["humidity"] = rh < WX_LIMITS["humidity"]
-        checks["wind"] = wind < WX_LIMITS["wind"]
 
     return wx_dict, checks
 
