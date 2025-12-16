@@ -99,6 +99,8 @@ if sun_azel.alt > -8 * u.deg:
         msg = f"Early twilight: sun is at {sun_azel.alt: .1f}; "
         log.info(msg)
         wx_message += msg
+else:
+    log.info(f"Sun is down: {sun_azel.alt: .1f} below the horizon.")
 
 stopfile = Path.home() / "STOP"
 if stopfile.exists():
