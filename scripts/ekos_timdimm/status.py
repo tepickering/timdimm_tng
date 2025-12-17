@@ -130,6 +130,14 @@ if open_ok:
     except Exception as e:
         log.info(f"Can't access ox wagon: {e}")
     if not scheduler.status:
+        try:
+            if mount.park_status == 1:
+                log.info("OK to open, but mount is parked. Unparking telescope...")
+                mount.unpark()
+        except Exception as e:
+            log.info(f"Can't unpark mount: {e}")
+
+        log.info(f"Parked status: {mount.park_status}")
         log.info("Scheduler stopped. Restarting...")
         scheduler.reset_all_jobs()
         scheduler.load_scheduler(str(Path.home() / "timdimm_tng" / "timdimm_schedule.esl"))

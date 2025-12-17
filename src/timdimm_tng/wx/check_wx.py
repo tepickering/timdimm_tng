@@ -29,7 +29,10 @@ def get_current_conditions():
 
     # get the current weather conditions from the SAAO IO weather information system
     wx_dict = {}
-    wx_dict["SAAO-IO"] = saao_io_wx()
+    try:
+        wx_dict["SAAO-IO"] = saao_io_wx()
+    except Exception as e:
+        wx_dict["SAAO-IO"] = {"Valid": False}
 
     # check if data is recent
     td = Time(wx_dict["SAAO-IO"]["timestamp"]) - Time.now()
@@ -47,7 +50,10 @@ def get_current_conditions():
         checks["wind"] = (wind < WX_LIMITS["wind"]) and not wind_warn
 
     # get the current weather conditions from the SALT weather station
-    wx_dict["SALT"] = salt_wx()
+    try:
+        wx_dict["SALT"] = salt_wx()
+    except Exception as e:
+        wx_dict["SALT"] = {"Valid": False}
 
     return wx_dict, checks
 
