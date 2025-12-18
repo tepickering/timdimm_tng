@@ -34,13 +34,13 @@ def get_current_conditions():
     except Exception as e:
         wx_dict["SAAO-IO"] = {"Valid": False}
 
-    # check if data is recent
-    td = Time(wx_dict["SAAO-IO"]["timestamp"]) - Time.now()
-    # hack to avoid messing with timezones for SAAO timestamps
-    if abs(td - 120 * u.minute) > 10 * u.minute:
-        wx_dict["SAAO-IO"]["Valid"] = False
-
     if wx_dict["SAAO-IO"]["Valid"]:
+        # check if data is recent
+        td = Time(wx_dict["SAAO-IO"]["timestamp"]) - Time.now()
+        # hack to avoid messing with timezones for SAAO timestamps
+        if abs(td - 120 * u.minute) > 10 * u.minute:
+            wx_dict["SAAO-IO"]["Valid"] = False
+
         # check against operational limits
         rh = float(wx_dict["SAAO-IO"]["humidity"])
         wind = float(wx_dict["SAAO-IO"]["wind"])

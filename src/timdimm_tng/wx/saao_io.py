@@ -14,6 +14,13 @@ def parse_saao_io():
     SAAO_IO_URL = "https://io.saao.ac.za/IO/current_weather.json"
     io_data = {}
     io_data["Valid"] = False
+    keys = [
+        "timestamp",
+        "wind",
+        "humidity",
+        "wind_warn",
+        "humidity_warn",
+    ]
 
     try:
         sock = urlopen(SAAO_IO_URL)
@@ -24,6 +31,11 @@ def parse_saao_io():
         e = {}
         e["Valid"] = False
         return e
+
+    # final check to make sure all needed keys are present
+    for key in keys:
+        if key not in io_data:
+            io_data["Valid"] = False
 
     return io_data
 
