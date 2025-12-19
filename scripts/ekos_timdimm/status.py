@@ -165,8 +165,9 @@ if open_ok:
 else:
     log.info("Unsafe conditions. Not ok to be open...")
 
-    with open(close_file, 'w') as fp:
-        fp.write(Time.now().isot)
+    if not close_file.exists():
+        with open(close_file, 'w') as fp:
+            fp.write(Time.now().isot)
 
     try:
         log.info("Make sure oxwagon close command is sent...")
