@@ -112,6 +112,19 @@ if sun_azel.alt > -6 * u.deg:
 else:
     log.info(f"Sun is down: {sun_azel.alt: .1f} below the horizon.")
 
+close_file = Path.home() / "CLOSED"
+if close_file.exists():
+    with open(close_file, 'r') as fp:
+        closed_time = Time(fp.read().strip())
+    td = Time.now() - closed_time
+    if td < 5 * u.minute:
+        open_ok = False
+        wx_message += "Recently closed; "
+        log.info("Recently closed, keeping closed for now.")
+    else:
+        close_file.unlink()
+        log.info("Removed CLOSED file after being closed for more than 5 minutes.")
+
 stopfile = Path.home() / "STOP"
 if stopfile.exists():
     open_ok = False
@@ -151,6 +164,9 @@ if open_ok:
         mount.set_meridian_flip_values(activate=True, hours=1.0)
 else:
     log.info("Unsafe conditions. Not ok to be open...")
+
+    with open(close_file, 'w') as fp:
+        fp.write(Time.now().isot)
 
     try:
         log.info("Make sure oxwagon close command is sent...")
