@@ -97,9 +97,10 @@ except Exception as e:
     log.error(f"Can't get current conditions: {e}")
     open_ok = False
 
-# set the safety limit to civil twilight, -6 degrees.
+# set the safety limit to nautical twilight, -12 degrees.
 # needs to be dark enough for autoguiding to be happy.
-if sun_azel.alt > -6 * u.deg:
+# also needs to close early enough to not keep SALT night crew waiting.
+if sun_azel.alt > -12 * u.deg:
     open_ok = False
     if sun_azel.alt > 0 * u.deg:
         msg = f"Sun is up: {sun_azel.alt: .1f} above the horizon; "
