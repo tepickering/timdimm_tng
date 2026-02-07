@@ -58,6 +58,8 @@ monet_wx = "timdimm_tng.wx.monet_weather:main"
 saao_io = "timdimm_tng.wx.saao_io:main"
 check_wx = "timdimm_tng.wx.check_wx:main"
 timdimm = "timdimm_tng.timdimm_gui:main"
+timdimm_stop = "timdimm_tng.timdimm_gui:timdimm_stop"
+timdimm_start = "timdimm_tng.timdimm_gui:timdimm_start"
 
 [tool.setuptools.packages.find]
 where = ["src"]
