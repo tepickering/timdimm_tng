@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Utilities for the SAAO timDIMM and MMTO portable seeing monitor"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 authors = [
     { name = "T. E. Pickering", email = "te.pickering@gmail.com" }
 ]

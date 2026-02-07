@@ -77,7 +77,7 @@ After installation, these commands are available:
 ## Code Style
 
 - Line length: 132 characters (configured in pyproject.toml for both ruff and flake8)
-- Python 3.9+ required (conda env uses 3.11+)
+- Python 3.12+ required
 - Uses astropy units throughout for physical quantities (e.g., `76.2 * u.mm`, `0.5 * u.um`)
 - Version managed automatically via setuptools_scm (writes `src/timdimm_tng/version.py`)
 
