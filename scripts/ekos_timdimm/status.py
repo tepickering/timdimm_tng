@@ -92,7 +92,7 @@ try:
 
     # final decision: if either station says it's ok, we're ok to be open
     # open_ok = saao_open_ok or salt_open_ok
-    open_ok = salt_open_ok or saao_open_ok
+    open_ok = salt_open_ok # or saao_open_ok
 except Exception as e:
     log.error(f"Can't get current conditions: {e}")
     open_ok = False
