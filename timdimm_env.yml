@@ -1,16 +1,16 @@
 name: timdimm
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python>=3.12
-  - numpy>=1.22
+  - python>=3.12,<3.13
+  - numpy>=2.0
   - scipy>=1.9
-  - astropy>=5.1
+  - astropy>=7.0
   - setuptools
   - matplotlib>=3.4
   - ipython>=7.27
   - pytest>=6.2
+  - pytest-astropy
   - bottleneck
   - scikit-image
   - pip
@@ -18,8 +18,9 @@ dependencies:
   - ipympl
   - notebook
   - beautifulsoup4
+  - photutils
+  - astroplan
+  - xmltodict
   - pip:
     - sdbus
-    - astroplan
-    - photutils
-    - xmltodict
+    - pyserial
