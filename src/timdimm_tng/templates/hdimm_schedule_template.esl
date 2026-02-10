@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SchedulerList version='2.1'>
+<Profile>timdimm_sim</Profile>
+<Job>
+<JobType lead='true'/>
+<Name>Target</Name>
+<Priority>10</Priority>
+<Coordinates>
+<J2000RA></J2000RA>
+<J2000DE></J2000DE>
+</Coordinates>
+<PositionAngle></PositionAngle>
+<Sequence>/home/astronaut/timdimm_tng/src/timdimm_tng/templates/hdimm_sequence.esq</Sequence>
+<StartupCondition>
+<Condition>ASAP</Condition>
+</StartupCondition>
+<Constraints>
+<Constraint value='45'>MinimumAltitude</Constraint>
+<Constraint value='20'>MoonSeparation</Constraint>
+<Constraint>EnforceWeather</Constraint>
+<Constraint>EnforceTwilight</Constraint>
+</Constraints>
+<CompletionCondition>
+<Condition>Loop</Condition>
+</CompletionCondition>
+<Steps>
+<Step>Track</Step>
+<Step>Align</Step>
+<Step>Guide</Step>
+</Steps>
+</Job>
+<Job>
+<JobType lead='true'/>
+<Name>Target</Name>
+<Priority>10</Priority>
+<Coordinates>
+<J2000RA></J2000RA>
+<J2000DE></J2000DE>
+</Coordinates>
+<PositionAngle></PositionAngle>
+<Sequence>/home/astronaut/timdimm_tng/src/timdimm_tng/templates/hdimm_sequence.esq</Sequence>
+<StartupCondition>
+<Condition>ASAP</Condition>
+</StartupCondition>
+<Constraints>
+<Constraint value='45'>MinimumAltitude</Constraint>
+<Constraint value='20'>MoonSeparation</Constraint>
+<Constraint>EnforceWeather</Constraint>
+<Constraint>EnforceTwilight</Constraint>
+</Constraints>
+<CompletionCondition>
+<Condition>Loop</Condition>
+</CompletionCondition>
+<Steps>
+<Step>Track</Step>
+<Step>Align</Step>
+<Step>Guide</Step>
+</Steps>
+</Job>
+<SchedulerAlgorithm value='1'/>
+<ErrorHandlingStrategy value='1'>
+<delay>0</delay>
+</ErrorHandlingStrategy>
+<StartupProcedure>
+<Procedure value='/home/astronaut/timdimm_tng/scripts/ekos_hdimm/startup.py'>StartupScript</Procedure>
+<Procedure>UnparkDome</Procedure>
+<Procedure>UnparkMount</Procedure>
+</StartupProcedure>
+<ShutdownProcedure>
+<Procedure>ParkMount</Procedure>
+<Procedure>ParkDome</Procedure>
+<Procedure value='/home/astronaut/timdimm_tng/scripts/ekos_hdimm/shutdown.py'>ShutdownScript</Procedure>
+</ShutdownProcedure>
+</SchedulerList>

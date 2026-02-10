@@ -1,5 +1,5 @@
 #!/bin/sh
 
-/home/tim/conda/envs/fass/bin/vid_capture -n 10 --ser
+/home/tim/conda/envs/timdimm_tng/bin/vid_capture -n 10 --ser
 
 exit 0

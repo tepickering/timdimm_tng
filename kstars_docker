@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# this script is based off what was developed for iraf_docker to get
+# X forwarding to work from the container and tweak network settings
+# to prevent lockups.
+
+xhost + 127.0.0.1 > /dev/null 2>&1
+
+docker run -ti --rm \
+    --platform linux/amd64 \
+    -e DISPLAY=host.docker.internal:0 \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    --sysctl net.ipv4.tcp_keepalive_intvl=45 \
+    --sysctl net.ipv4.tcp_keepalive_probes=15 \
+    --sysctl net.ipv4.tcp_keepalive_time=120 \
+    tepickering/timdimm \
+    /bin/bash
+
+xhost - 127.0.0.1 > /dev/null 2>&1

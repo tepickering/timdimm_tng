@@ -1,0 +1,25 @@
+name: timdimm
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.12
+  - numpy>=1.22
+  - scipy>=1.9
+  - astropy>=5.1
+  - setuptools
+  - matplotlib>=3.4
+  - ipython>=7.27
+  - pytest>=6.2
+  - bottleneck
+  - scikit-image
+  - pip
+  - pandas
+  - ipympl
+  - notebook
+  - beautifulsoup4
+  - pip:
+    - sdbus
+    - astroplan
+    - photutils
+    - xmltodict

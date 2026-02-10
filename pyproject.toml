@@ -1,13 +1,75 @@
 [build-system]
-requires = ["setuptools>=42",
-            "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=61", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "timdimm_tng"
+dynamic = ["version"]
+description = "Utilities for the SAAO timDIMM and MMTO portable seeing monitor"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [
+    { name = "T. E. Pickering", email = "te.pickering@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "astroplan",
+    "astropy",
+    "beautifulsoup4",
+    "ipykernel",
+    "ipympl",
+    "matplotlib",
+    "pandas",
+    "photutils",
+    "pyserial",
+    "scikit-image",
+    "scipy",
+    "xmltodict",
+]
+
+[project.urls]
+Homepage = "https://github.com/MMTObservatory/timdimm_tng"
+"Bug Tracker" = "https://github.com/MMTObservatory/timdimm_tng/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest-astropy",
+    "notebook",
+    "ipympl",
+]
+sdbus = [
+    "sdbus",
+]
+
+[project.scripts]
+vid_capture = "timdimm_tng.vid_capture:main"
+timdimm_analyze = "timdimm_tng.analyze_cube:timdimm_analyze"
+hdimm_analyze = "timdimm_tng.analyze_cube:hdimm_analyze"
+oxwagon = "timdimm_tng.ox_wagon:main"
+gfz_wx = "timdimm_tng.wx.gfz_weather:main"
+salt_wx = "timdimm_tng.wx.salt_weather_xml:main"
+lco_wx = "timdimm_tng.wx.lcogt_weather:main"
+lco_boltwood_wx = "timdimm_tng.wx.lcogt_bwc2_weather:main"
+monet_wx = "timdimm_tng.wx.monet_weather:main"
+saao_io = "timdimm_tng.wx.saao_io:main"
+check_wx = "timdimm_tng.wx.check_wx:main"
+timdimm = "timdimm_tng.timdimm_gui:main"
+timdimm_stop = "timdimm_tng.timdimm_gui:timdimm_stop"
+timdimm_start = "timdimm_tng.timdimm_gui:timdimm_start"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.setuptools_scm]
-write_to = "src/fass/version.py"
+write_to = "src/timdimm_tng/version.py"
+
+[tool.ruff]
+line-length = 132
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = [
-    "src/fass/tests"
-]
+testpaths = ["src/timdimm_tng/tests"]

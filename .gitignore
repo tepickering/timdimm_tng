@@ -129,3 +129,10 @@ dmypy.json
 .pyre/
 */*/version.py
 data/
+tcs.xml
+timdimm_prop*.txt
+status.json
+*~
+*.json
+*.pdf
+.DS_Store
