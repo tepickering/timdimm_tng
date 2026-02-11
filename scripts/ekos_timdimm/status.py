@@ -197,9 +197,11 @@ else:
 roof_status['roof_status']['open_ok'] = open_ok
 roof_status['roof_status']['reasons'] = wx_message
 
+# this is the status in the format INDI wants
 with open(Path.home() / "roof_status.json", 'w') as fp:
     json.dump(roof_status, fp, indent=4)
 
+# this is in a format another part of INDI wants
 with open(Path.home() / "ox_wagon_status.txt", 'r') as coords:
     ox_wagon = coords.readline()
     with open(path, 'w') as indistat:
@@ -207,5 +209,8 @@ with open(Path.home() / "ox_wagon_status.txt", 'r') as coords:
         indistat.write(ox_wagon)
 
 log.info(f"Ox Wagon status: {ox_wagon.strip()}")
+
+# dump the full status of the ox wagon for displaying on the web interface and for debugging
+json.dump(o.status(), open(Path.home() / "ox_wagon_status.json", 'w'), indent=4)
 
 sys.exit(0)
