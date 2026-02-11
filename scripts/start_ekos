@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+
+import sdbus
+from timdimm_tng.dbus.ekos import Ekos
+
+bus = sdbus.sd_bus_open_user()
+ekos = Ekos(bus=bus)
+ekos.start()

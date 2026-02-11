@@ -1,0 +1,9 @@
+#!/bin/bash
+
+export PATH=$HOME/conda/envs/timdimm/bin:$HOME/conda/condabin:$HOME/timdimm_tng/scripts:$PATH
+export CONDA_PREFIX=$HOME/conda/envs/timdimm
+export CONDA_DEFAULT_ENV=timdimm
+
+kstars > kstars.log 2>&1 &
+sleep 3
+start_ekos > ekos.log 2>&1 &
