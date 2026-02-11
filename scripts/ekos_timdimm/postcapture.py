@@ -111,6 +111,7 @@ if np.isfinite(seeing_data['seeing'].value) and seeing_data['seeing'].value < 10
             print(tobs, file=f)
 
         os.system("scp -q /home/timdimm/seeing.txt massdimm@seeing.suth.saao.ac.za:~/timDIMM/.")
+        os.system("mv /home/timdimm/seeing.txt /var/www/html/seeing/seeing.txt")
         os.system("mv ~/seeing.ser ~/last_good_seeing.ser")
     else:
         log.warning("Too many bad frames in seeing data.")
