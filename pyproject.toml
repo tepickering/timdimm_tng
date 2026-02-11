@@ -29,6 +29,8 @@ dependencies = [
     "scikit-image",
     "scipy",
     "xmltodict",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
 [project.urls]
@@ -40,6 +42,7 @@ dev = [
     "pytest-astropy",
     "notebook",
     "ipympl",
+    "flake8",
 ]
 sdbus = [
     "sdbus",
@@ -60,6 +63,7 @@ check_wx = "timdimm_tng.wx.check_wx:main"
 timdimm = "timdimm_tng.timdimm_gui:main"
 timdimm_stop = "timdimm_tng.timdimm_startstop:timdimm_stop"
 timdimm_start = "timdimm_tng.timdimm_startstop:timdimm_start"
+timdimm_web = "timdimm_tng.webgui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

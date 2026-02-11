@@ -21,6 +21,9 @@ dependencies:
   - photutils
   - astroplan
   - xmltodict
+  - flake8
+  - fastapi
+  - uvicorn
   - pip:
     - sdbus
     - pyserial
