@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
 from timdimm_tng.timdimm_startstop import timdimm_start, timdimm_stop
@@ -20,6 +20,7 @@ app = FastAPI(title="timDIMM Web Interface")
 STATUS_FILE = Path.home() / "ox_wagon_status.json"
 STOP_FILE = Path.home() / "STOP"
 SEEING_FILE = Path.home() / "seeing.csv"
+SEEING_TXT = Path.home() / "seeing.txt"
 
 HTML_PAGE = """\
 <!DOCTYPE html>
@@ -331,6 +332,13 @@ async def toggle():
         timdimm_stop()
         running = False
     return JSONResponse({"running": running})
+
+
+@app.get("/seeing/seeing.txt")
+async def seeing_txt():
+    if not SEEING_TXT.exists():
+        return JSONResponse({"error": "seeing.txt not found"}, status_code=404)
+    return FileResponse(SEEING_TXT, media_type="text/plain")
 
 
 def main():
