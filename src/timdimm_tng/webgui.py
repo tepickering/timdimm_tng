@@ -397,15 +397,32 @@ async def log_stream(websocket: WebSocket, source: str):
         return
     log_path = LOG_FILES[source]
     await websocket.accept()
-    proc = await asyncio.create_subprocess_exec(
-        "tail", "-f", "-n", "50", str(log_path),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
-    )
+
+    if not log_path.exists():
+        await websocket.send_text(f"[log file not found: {log_path}]")
+        await websocket.close()
+        return
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "tail", "-f", "-n", "50", str(log_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as e:
+        await websocket.send_text(f"[failed to start tail: {e}]")
+        await websocket.close()
+        return
+
     try:
         while True:
             line = await proc.stdout.readline()
             if not line:
+                # tail exited — report why
+                stderr = await proc.stderr.read()
+                rc = await proc.wait()
+                msg = stderr.decode("utf-8", errors="replace").strip()
+                await websocket.send_text(f"[tail exited (rc={rc}): {msg}]")
                 break
             text = line.decode("utf-8", errors="replace").rstrip("\n")
             text = text.replace(" - timDIMM", "")
@@ -413,7 +430,10 @@ async def log_stream(websocket: WebSocket, source: str):
     except WebSocketDisconnect:
         pass
     finally:
-        proc.kill()
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
         await proc.wait()
 
 
