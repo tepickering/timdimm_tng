@@ -360,7 +360,7 @@ def _read_seeing_csv():
 
     latest = dict(rows[-1][2])
     try:
-        latest["seeing"] = f'{float(latest["seeing"]):.3f}"'
+        latest["seeing"] = f'{float(latest["seeing"]):.2f}"'
     except (KeyError, ValueError):
         pass
     try:
