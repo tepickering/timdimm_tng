@@ -1,0 +1,36 @@
+# Source - https://stackoverflow.com/a/79394053
+# Posted by Aayush Shah
+# Retrieved 2026-02-12, License - CC BY-SA 4.0
+
+[Unit]
+Description=timDIMM web GUI
+After=network.target
+
+[Service]
+# User and group for running the service
+User=timdimm
+Group=timdimm
+
+# Working directory of your FastAPI project
+WorkingDirectory=~
+
+# Allow access to files in home directory
+ProtectHome=false
+
+# Activate the virtual environment
+Environment="PATH=/home/timdimm/conda/envs/timdimm/bin:/usr/bin:$PATH"
+Environment="HOME=/home/timdimm"
+
+# Start the FastAPI application with Uvicorn
+ExecStart=/home/timdimm/conda/envs/timdimm/bin/timdimm_web
+
+# Graceful reload and stop commands
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+
+# Restart policy and security
+Restart=always
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -3,8 +3,6 @@
 import tkinter as tk
 import os
 import time
-from pathlib import Path
-
 
 def run(program, *args):
     pid = os.fork()
@@ -93,9 +91,3 @@ def main():
     root.mainloop()
 
 
-def timdimm_stop():
-    Path("~/STOP").expanduser().touch()
-
-
-def timdimm_start():
-    Path("~/STOP").expanduser().unlink(missing_ok=True)

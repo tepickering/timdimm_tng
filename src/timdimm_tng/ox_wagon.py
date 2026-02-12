@@ -4,7 +4,6 @@ the ox wagon enclosure.
 """
 
 import serial
-import io
 import argparse
 import time
 
@@ -46,7 +45,7 @@ def checksum(str):
     """
     twos complement checksum as used by the ox wagon PLC
     """
-    command = str[1 : len(str) - 4]
+    command = str[1:len(str) - 4]
     sum = 0
     for i in range(0, len(command), 2):
         byte = command[i] + command[i + 1]
@@ -146,13 +145,19 @@ class OxWagon:
                 if retries >= retry_limit:
                     raise e
 
-        # use this trick to make sure the CR-LF conversions are
-        # handled correctly
-        self.sio = io.TextIOWrapper(
-            io.BufferedRWPair(self.ser, self.ser), newline="\r\n"
-        )
-        self.sio.flush()
+        self.ser.flush()
         self.status()
+
+    def close_port(self):
+        """Close the serial port."""
+        try:
+            if hasattr(self, 'ser') and self.ser.is_open:
+                self.ser.close()
+        except Exception:
+            pass
+
+    def __del__(self):
+        self.close_port()
 
     def command(self, cmd, debug=True):
         """
@@ -177,10 +182,10 @@ class OxWagon:
         to_send = "%s%x\n" % (cmd, sum)
         to_send = to_send.upper()
 
-        self.sio.write(str(to_send))
-        self.sio.flush()
+        self.ser.write(to_send.replace('\n', '\r\n').encode())
+        self.ser.flush()
 
-        resp = self.sio.readline()
+        resp = self.ser.readline().decode()
 
         if debug:
             print(resp)
@@ -259,10 +264,10 @@ class OxWagon:
         send pre-defined command to query status and parse response into
         dict that is cached into state{} and also returned to caller.
         """
-        self.sio.write(str(":0103106E000579\n"))
-        self.sio.flush()
+        self.ser.write(b":0103106E000579\r\n")
+        self.ser.flush()
 
-        resp = self.sio.readline()
+        resp = self.ser.readline().decode()
 
         # use hex2bin from binutils.py
         reg_106e = hex2bin(resp[7:11])
