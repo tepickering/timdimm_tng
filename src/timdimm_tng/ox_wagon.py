@@ -4,7 +4,6 @@ the ox wagon enclosure.
 """
 
 import serial
-import io
 import argparse
 import time
 
@@ -146,30 +145,11 @@ class OxWagon:
                 if retries >= retry_limit:
                     raise e
 
-        # use this trick to make sure the CR-LF conversions are
-        # handled correctly
-        self._buf = io.BufferedRWPair(self.ser, self.ser)
-        self.sio = io.TextIOWrapper(self._buf, newline="\r\n")
-        self.sio.flush()
+        self.ser.flush()
         self.status()
 
     def close_port(self):
-        """Close the I/O wrappers and serial port in the correct order.
-
-        Detach the TextIOWrapper first so it won't flush during GC,
-        then close the BufferedRWPair while the serial port is still
-        open (so its flush succeeds), which also closes the port.
-        """
-        try:
-            if hasattr(self, 'sio') and not self.sio.closed:
-                self.sio.detach()
-        except Exception:
-            pass
-        try:
-            if hasattr(self, '_buf') and not self._buf.closed:
-                self._buf.close()
-        except Exception:
-            pass
+        """Close the serial port."""
         try:
             if hasattr(self, 'ser') and self.ser.is_open:
                 self.ser.close()
@@ -202,10 +182,10 @@ class OxWagon:
         to_send = "%s%x\n" % (cmd, sum)
         to_send = to_send.upper()
 
-        self.sio.write(str(to_send))
-        self.sio.flush()
+        self.ser.write(to_send.replace('\n', '\r\n').encode())
+        self.ser.flush()
 
-        resp = self.sio.readline()
+        resp = self.ser.readline().decode()
 
         if debug:
             print(resp)
@@ -284,10 +264,10 @@ class OxWagon:
         send pre-defined command to query status and parse response into
         dict that is cached into state{} and also returned to caller.
         """
-        self.sio.write(str(":0103106E000579\n"))
-        self.sio.flush()
+        self.ser.write(b":0103106E000579\r\n")
+        self.ser.flush()
 
-        resp = self.sio.readline()
+        resp = self.ser.readline().decode()
 
         # use hex2bin from binutils.py
         reg_106e = hex2bin(resp[7:11])
