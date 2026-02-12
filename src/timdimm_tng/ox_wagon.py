@@ -46,7 +46,7 @@ def checksum(str):
     """
     twos complement checksum as used by the ox wagon PLC
     """
-    command = str[1 : len(str) - 4]
+    command = str[1:len(str) - 4]
     sum = 0
     for i in range(0, len(command), 2):
         byte = command[i] + command[i + 1]
@@ -148,11 +148,23 @@ class OxWagon:
 
         # use this trick to make sure the CR-LF conversions are
         # handled correctly
-        self.sio = io.TextIOWrapper(
-            io.BufferedRWPair(self.ser, self.ser), newline="\r\n"
-        )
+        self._buf = io.BufferedRWPair(self.ser, self.ser)
+        self.sio = io.TextIOWrapper(self._buf, newline="\r\n")
         self.sio.flush()
         self.status()
+
+    def close_port(self):
+        """Close the I/O wrappers and serial port in the correct order."""
+        if hasattr(self, 'sio') and not self.sio.closed:
+            self.sio.flush()
+            self.sio.detach()
+        if hasattr(self, '_buf') and not self._buf.closed:
+            self._buf.detach()
+        if hasattr(self, 'ser') and self.ser.is_open:
+            self.ser.close()
+
+    def __del__(self):
+        self.close_port()
 
     def command(self, cmd, debug=True):
         """
