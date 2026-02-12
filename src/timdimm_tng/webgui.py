@@ -78,6 +78,9 @@ HTML_PAGE = """\
     width: 100%; height: 260px; overflow-y: auto;
     padding: 0.6rem; border-radius: 4px; white-space: pre-wrap; word-break: break-all;
   }
+  .log-info { color: #2ecc71; }
+  .log-warning { color: #f1c40f; }
+  .log-error { color: #e74c3c; }
   .meta { font-size: 0.75rem; color: #636e72; text-align: center; margin-top: 0.6rem; }
   #error { color: #e74c3c; text-align: center; margin-bottom: 0.5rem; display: none; }
 </style>
@@ -271,16 +274,20 @@ function connectLog(source) {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   logWs = new WebSocket(`${proto}//${location.host}/ws/log/${source}`);
   logWs.onmessage = function(e) {
-    box.textContent += e.data + "\\n";
+    const line = document.createElement("span");
+    if (e.data.includes(" - ERROR - ")) line.className = "log-error";
+    else if (e.data.includes(" - WARNING - ")) line.className = "log-warning";
+    else if (e.data.includes(" - INFO - ")) line.className = "log-info";
+    line.textContent = e.data + "\\n";
+    box.appendChild(line);
     // trim to last MAX_LOG_LINES lines
-    const lines = box.textContent.split("\\n");
-    if (lines.length > MAX_LOG_LINES + 1) {
-      box.textContent = lines.slice(-MAX_LOG_LINES - 1).join("\\n");
-    }
+    while (box.children.length > MAX_LOG_LINES) box.removeChild(box.firstChild);
     box.scrollTop = box.scrollHeight;
   };
   logWs.onclose = function() {
-    box.textContent += "[connection closed]\\n";
+    const s = document.createElement("span");
+    s.textContent = "[connection closed]\\n";
+    box.appendChild(s);
   };
 }
 
