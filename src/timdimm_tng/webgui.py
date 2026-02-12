@@ -2,6 +2,7 @@
 FastAPI web interface for OxWagon enclosure status and timDIMM start/stop control.
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -9,7 +10,7 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
@@ -21,6 +22,10 @@ STATUS_FILE = Path.home() / "ox_wagon_status.json"
 STOP_FILE = Path.home() / "STOP"
 SEEING_FILE = Path.home() / "seeing.csv"
 SEEING_TXT = Path.home() / "seeing.txt"
+LOG_FILES = {
+    "oxwagon": Path.home() / "ox_wagon.log",
+    "seeing": Path.home() / "timdimm.log",
+}
 
 HTML_PAGE = """\
 <!DOCTYPE html>
@@ -61,6 +66,18 @@ HTML_PAGE = """\
   .stopped  { background: #2ecc71; color: #fff; }
   .stopped:hover { background: #27ae60; }
   canvas { width: 100% !important; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+  .card-header h2 { margin-bottom: 0; }
+  #log-select {
+    background: #1a1a2e; color: #c8d6e5; border: 1px solid #8395a7;
+    border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.85rem;
+  }
+  #log-box {
+    background: #0f0f23; color: #a0d0a0; font-family: monospace;
+    font-size: 0.8rem; line-height: 1.4;
+    width: 100%; height: 260px; overflow-y: auto;
+    padding: 0.6rem; border-radius: 4px; white-space: pre-wrap; word-break: break-all;
+  }
   .meta { font-size: 0.75rem; color: #636e72; text-align: center; margin-top: 0.6rem; }
   #error { color: #e74c3c; text-align: center; margin-bottom: 0.5rem; display: none; }
 </style>
@@ -89,6 +106,17 @@ HTML_PAGE = """\
 <div class="card">
   <h2>OxWagon Enclosure</h2>
   <table id="status-table"><tbody></tbody></table>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Log Stream</h2>
+    <select id="log-select" onchange="switchLog()">
+      <option value="oxwagon">Ox Wagon</option>
+      <option value="seeing">Seeing Analysis</option>
+    </select>
+  </div>
+  <div id="log-box"></div>
 </div>
 
 <div class="meta">Auto-refresh every 5 s</div>
@@ -233,11 +261,39 @@ async function toggle() {
   }
 }
 
+let logWs = null;
+const MAX_LOG_LINES = 500;
+
+function connectLog(source) {
+  if (logWs) logWs.close();
+  const box = document.getElementById("log-box");
+  box.textContent = "";
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  logWs = new WebSocket(`${proto}//${location.host}/ws/log/${source}`);
+  logWs.onmessage = function(e) {
+    box.textContent += e.data + "\\n";
+    // trim to last MAX_LOG_LINES lines
+    const lines = box.textContent.split("\\n");
+    if (lines.length > MAX_LOG_LINES + 1) {
+      box.textContent = lines.slice(-MAX_LOG_LINES - 1).join("\\n");
+    }
+    box.scrollTop = box.scrollHeight;
+  };
+  logWs.onclose = function() {
+    box.textContent += "[connection closed]\\n";
+  };
+}
+
+function switchLog() {
+  connectLog(document.getElementById("log-select").value);
+}
+
 initChart();
 fetchStatus();
 fetchSeeing();
 setInterval(fetchStatus, 5000);
 setInterval(fetchSeeing, 5000);
+connectLog("oxwagon");
 </script>
 </body>
 </html>
@@ -332,6 +388,33 @@ async def toggle():
         timdimm_stop()
         running = False
     return JSONResponse({"running": running})
+
+
+@app.websocket("/ws/log/{source}")
+async def log_stream(websocket: WebSocket, source: str):
+    if source not in LOG_FILES:
+        await websocket.close(code=1008)
+        return
+    log_path = LOG_FILES[source]
+    await websocket.accept()
+    proc = await asyncio.create_subprocess_exec(
+        "tail", "-f", "-n", "50", str(log_path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", errors="replace").rstrip("\n")
+            text = text.replace(" - timDIMM", "")
+            await websocket.send_text(text)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        proc.kill()
+        await proc.wait()
 
 
 @app.get("/seeing/seeing.txt")
