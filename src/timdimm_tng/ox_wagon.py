@@ -154,14 +154,22 @@ class OxWagon:
         self.status()
 
     def close_port(self):
-        """Close the I/O wrappers and serial port in the correct order."""
-        if hasattr(self, 'sio') and not self.sio.closed:
-            self.sio.flush()
-            self.sio.detach()
-        if hasattr(self, '_buf') and not self._buf.closed:
-            self._buf.detach()
-        if hasattr(self, 'ser') and self.ser.is_open:
-            self.ser.close()
+        """Close the I/O wrappers and serial port in the correct order.
+
+        Detach the TextIOWrapper so it won't try to flush the underlying
+        serial port during garbage collection, then close the serial port
+        directly.
+        """
+        try:
+            if hasattr(self, 'sio') and not self.sio.closed:
+                self.sio.detach()
+        except Exception:
+            pass
+        try:
+            if hasattr(self, 'ser') and self.ser.is_open:
+                self.ser.close()
+        except Exception:
+            pass
 
     def __del__(self):
         self.close_port()
