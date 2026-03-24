@@ -160,7 +160,7 @@ def find_apertures(
         Standard deviation of image statistics, calculate if None
     """
     if std is None:
-        mean, median, std = stats.sigma_clipped_stats(data, sigma=3.0, maxiters=5)
+        mean, median, std = stats.sigma_clipped_stats(data, sigma=5.0, maxiters=5)
 
     data = data - mean
     threshold = threshold * std
@@ -315,7 +315,7 @@ def analyze_dimm_cube(
         if napertures == 2:
             ap_size = 11
         else:
-            ap_size = 15
+            ap_size = 9
 
     apertures, fig = find_apertures(
         np.mean(cube["data"][:5], axis=0),
