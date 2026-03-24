@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SchedulerList version="2.1">
-    <Profile>timdimm_sim</Profile>
+    <Profile>timdimm</Profile>
     <Job>
         <JobType lead="true"></JobType>
         <Name>Vega</Name>
