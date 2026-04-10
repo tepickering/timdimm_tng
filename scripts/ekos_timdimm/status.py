@@ -176,7 +176,7 @@ else:
         # ox wagon can get into state where drop roof reports both "open" and "moving".
         # this prevents the ox wagon from closing. sending "RESET" cleared that up manually.
         # just send "RESET" before every "CLOSE" to be extra, extra sure...
-        o.command('RESET', debug=False)
+        # o.command('RESET', debug=False)
         o.command('CLOSE', debug=False)
     except Exception as e:
         log.info(f"Can't access ox wagon: {e}")
