@@ -174,9 +174,11 @@ else:
         log.info("Make sure oxwagon close command is sent...")
         o = OxWagon()
         # ox wagon can get into state where drop roof reports both "open" and "moving".
-        # this prevents the ox wagon from closing. sending "RESET" cleared that up manually.
-        # just send "RESET" before every "CLOSE" to be extra, extra sure...
-        # o.command('RESET', debug=False)
+        # this prevents the ox wagon from closing. sending "RESET" clears that up.
+        ox_state = o.status()
+        if ox_state.get("Drop Roof Moving") and ox_state.get("Drop Roof Opened"):
+            log.info("Drop roof reports both moving and open. Sending RESET to clear stuck state...")
+            o.command('RESET', debug=False)
         o.command('CLOSE', debug=False)
     except Exception as e:
         log.info(f"Can't access ox wagon: {e}")
