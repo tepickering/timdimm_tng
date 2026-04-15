@@ -121,7 +121,7 @@ class OxWagon:
     ]
 
     # this may need to change for new computer
-    def __init__(self, port="/dev/ttyUSB0", retry_limit=10):
+    def __init__(self, port="/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A700dz6N-if00-port0", retry_limit=10):
         """
         we use the pyserial package, https://pyserial.readthedocs.io/, to
         implement RS232 communication. beware, the port may change if the
@@ -312,7 +312,7 @@ def main():
         "-p",
         "--port",
         required=False,
-        default="/dev/ttyUSB0",
+        default="/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A700dz6N-if00-port0",
         help="Serial port for ox wagon controller",
     )
 
