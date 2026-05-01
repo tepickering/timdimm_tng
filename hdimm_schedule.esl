@@ -16,7 +16,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -44,7 +44,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -72,7 +72,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -100,7 +100,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -128,7 +128,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -156,7 +156,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -184,7 +184,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -212,7 +212,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -240,7 +240,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -268,7 +268,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -296,7 +296,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -324,7 +324,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -352,7 +352,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -380,7 +380,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -408,7 +408,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -436,7 +436,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
@@ -464,7 +464,7 @@
         </StartupCondition>
         <Constraints>
             <Constraint value="45">MinimumAltitude</Constraint>
-            <Constraint value="20">MoonSeparation</Constraint>
+            <Constraint value="50">MoonSeparation</Constraint>
             <Constraint>EnforceWeather</Constraint>
             <Constraint>EnforceTwilight</Constraint>
         </Constraints>
