@@ -12,6 +12,8 @@ if pgrep -x kstars > /dev/null; then
     exit 0
 fi
 
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] kstars not running; killing indiserver and restarting kstars"
+
 pkill -x indiserver
 sleep 2
 pkill -9 -x indiserver
