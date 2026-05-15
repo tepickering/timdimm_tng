@@ -1,0 +1,19 @@
+#!/bin/bash
+
+export PATH=$HOME/conda/envs/timdimm/bin:$HOME/conda/condabin:$HOME/timdimm_tng/scripts:$PATH
+export CONDA_PREFIX=$HOME/conda/envs/timdimm
+export CONDA_DEFAULT_ENV=timdimm
+export DISPLAY=:0
+export XAUTHORITY=$HOME/.Xauthority
+
+cd "$HOME/timdimm_tng" || exit 1
+
+if pgrep -x kstars > /dev/null; then
+    exit 0
+fi
+
+pkill -x indiserver
+sleep 2
+pkill -9 -x indiserver
+
+./scripts/start_kstars
