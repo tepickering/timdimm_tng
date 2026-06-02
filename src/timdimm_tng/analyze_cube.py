@@ -166,7 +166,7 @@ def find_apertures(
     threshold = threshold * std
     kernel = make_2dgaussian_kernel(5, size=15)
     convolved_data = astropy.convolution.convolve(data, kernel)
-    finder = SourceFinder(npixels=15, deblend=deblend, progress_bar=False)
+    finder = SourceFinder(n_pixels=15, deblend=deblend, progress_bar=False)
     segment_map = finder(convolved_data, threshold)
     t = SourceCatalog(data, segment_map, convolved_data=convolved_data).to_table()
     t.sort("max_value")
