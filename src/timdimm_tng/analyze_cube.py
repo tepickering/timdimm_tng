@@ -171,12 +171,12 @@ def find_apertures(
     t = SourceCatalog(data, segment_map, convolved_data=convolved_data).to_table()
     t.sort("max_value")
     stars = t[-brightest:]
-    stars.sort("xcentroid")
+    stars.sort("x_centroid")
 
     if stars is None:
         raise Exception("No stars detected in image")
 
-    positions = list(zip(stars["xcentroid"], stars["ycentroid"]))
+    positions = list(zip(stars["x_centroid"], stars["y_centroid"]))
     apertures = CircularAperture(positions, r=ap_size)
 
     fig = None
