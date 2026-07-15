@@ -1,0 +1,8 @@
+[Unit]
+Description=Rotate the Adafruit SHT45 CSV log
+
+[Service]
+Type=oneshot
+ExecStart=/home/timdimm/timdimm_tng/scripts/rotate_adafruit_log
+PrivateTmp=true
+NoNewPrivileges=true

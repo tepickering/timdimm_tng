@@ -1,0 +1,11 @@
+[Unit]
+Description=Rotate the Adafruit SHT45 CSV log daily at 10:00 UTC
+
+[Timer]
+OnCalendar=*-*-* 10:00:00 UTC
+AccuracySec=1s
+Persistent=true
+Unit=adafruit-sht45-rotate.service
+
+[Install]
+WantedBy=timers.target

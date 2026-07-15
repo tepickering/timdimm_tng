@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -euo pipefail
+
+readonly logger_service="${ADAFRUIT_LOGGER_SERVICE:-adafruit-sht45.service}"
+readonly log_file="${ADAFRUIT_LOG_FILE:-/home/timdimm/adafruit.csv}"
+readonly date_stamp="${ADAFRUIT_ROTATION_DATE:-$(date -u +%Y-%m-%d)}"
+readonly archive_file="${log_file%.csv}-${date_stamp}.csv"
+readonly systemctl_command="${SYSTEMCTL_COMMAND:-systemctl}"
+
+restart_logger() {
+    "$systemctl_command" start "$logger_service"
+}
+
+"$systemctl_command" stop "$logger_service"
+trap restart_logger EXIT
+
+if [[ ! -e "$log_file" ]]; then
+    echo "No Adafruit CSV file to rotate: $log_file"
+    exit 0
+fi
+
+if [[ -e "$archive_file" || -e "${archive_file}.gz" ]]; then
+    echo "Refusing to overwrite existing Adafruit archive: ${archive_file}.gz" >&2
+    exit 1
+fi
+
+mv -- "$log_file" "$archive_file"
+gzip -- "$archive_file"
+
+echo "Created ${archive_file}.gz"
