@@ -1,0 +1,23 @@
+[Unit]
+Description=Adafruit SHT45 temperature and humidity logger
+After=local-fs.target
+
+[Service]
+Type=simple
+User=timdimm
+Group=timdimm
+SupplementaryGroups=dialout
+WorkingDirectory=/home/timdimm/timdimm_tng
+Environment="HOME=/home/timdimm"
+
+ExecStart=/home/timdimm/conda/envs/timdimm/bin/python /home/timdimm/timdimm_tng/scripts/log_adafruit.py --port /dev/serial/by-id/usb-Adafruit_Industries_LLC_SHT4x_Trinkey_M0_1D7A4E235359575020312E3512210CFF-if00 --output /home/timdimm/adafruit.csv
+
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+PrivateTmp=true
+NoNewPrivileges=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

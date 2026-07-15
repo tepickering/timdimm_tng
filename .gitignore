@@ -136,3 +136,4 @@ status.json
 *.json
 *.pdf
 .DS_Store
+.codegraph/
