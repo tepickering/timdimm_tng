@@ -8,6 +8,7 @@ As such, this is a good place to do overall monitoring of conditions.
 import sys
 import json
 import time
+from datetime import UTC, datetime
 
 from pathlib import Path
 import logging
@@ -29,6 +30,12 @@ from timdimm_tng.dbus.ekos import Ekos
 from timdimm_tng.dbus.dome import Dome
 
 from timdimm_tng.wx.check_wx import get_current_conditions
+from timdimm_tng.wx.adafruit import (
+    HUMIDITY_LIMIT,
+    latest_measurement,
+    measurement_is_stale,
+    measurement_requires_closure,
+)
 
 
 bus = sdbus.sd_bus_open_user()
@@ -76,7 +83,10 @@ try:
             log.info("RH and wind safety checks from SAAO IO passed. Safe to open.")
             wx_message += "SAAO IO says it's ok to open; "
         else:
-            log.warning(f"Weather conditions unsafe according to SAAO IO: Wind={wx["SAAO-IO"]["wind"]} RH={wx["SAAO-IO"]["humidity"]}")
+            log.warning(
+                f"Weather conditions unsafe according to SAAO IO: "
+                f"Wind={wx['SAAO-IO']['wind']} RH={wx['SAAO-IO']['humidity']}"
+            )
     else:
         log.warning("SAAO IO weather data invalid.")
 
@@ -92,10 +102,30 @@ try:
 
     # final decision: if either station says it's ok, we're ok to be open
     # open_ok = saao_open_ok or salt_open_ok
-    open_ok = salt_open_ok # or saao_open_ok
+    open_ok = salt_open_ok  # or saao_open_ok
 except Exception as e:
     log.error(f"Can't get current conditions: {e}")
     open_ok = False
+
+try:
+    adafruit_measurement = latest_measurement()
+    adafruit_humidity = adafruit_measurement.humidity
+
+    now = datetime.now(UTC)
+    if measurement_is_stale(adafruit_measurement.timestamp, now=now):
+        age_minutes = (now - adafruit_measurement.timestamp).total_seconds() / 60
+        log.warning(f"SHT45 measurement is stale: age={age_minutes:.1f} minutes")
+        wx_message += f"SHT45 data is {age_minutes:.1f} minutes old and ignored; "
+    elif measurement_requires_closure(adafruit_measurement, now=now):
+        open_ok = False
+        log.warning(f"SHT45 humidity is unsafe: RH={adafruit_humidity:.1f}% is at or above {HUMIDITY_LIMIT:.1f}%")
+        wx_message += f"SHT45 RH={adafruit_humidity:.1f}% is too high; "
+    else:
+        log.info(f"SHT45 humidity safety check passed: RH={adafruit_humidity:.1f}%")
+        wx_message += f"SHT45 RH={adafruit_humidity:.1f}% is safe; "
+except (OSError, UnicodeError, ValueError) as e:
+    log.warning(f"Can't read SHT45 humidity: {e}")
+    wx_message += "SHT45 humidity unavailable and ignored; "
 
 # set the safety limit to nautical twilight, -12 degrees.
 # needs to be dark enough for autoguiding to be happy.
