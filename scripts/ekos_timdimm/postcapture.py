@@ -88,7 +88,7 @@ except Exception as e:
 
 if np.isfinite(seeing_data['seeing'].value) and seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
-    if seeing_data['N_bad'] < 20:
+    if seeing_data['N_bad'] < 50:
         csv_file = Path.home() / "seeing.csv"
         if not csv_file.exists():
             with open(csv_file, 'w') as fp:
