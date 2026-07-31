@@ -7,12 +7,23 @@ import xmltodict
 
 from pathlib import Path
 
+from astropy.coordinates import Angle
 from astropy.table import Table
 import astropy.units as u
 
 
 TIMDIMM_DATA_DIR = importlib.resources.files(__name__) / "data"
 TEMPLATES =  importlib.resources.files(__name__) / "templates"
+
+# Ekos plate solving always centers the solution on the middle of the frame and there's no way to
+# configure a different reference position, so we bake the pointing offset into the coordinates
+# handed to the scheduler, which are what the align module converges on.
+#
+# Measured 2026-07-31 by centering the target by hand: it took +19 seconds of RA east of the
+# meridian and +42 seconds west of it. The east/west difference is a mount pointing term we don't
+# model, so we split the difference at +30. Worst case leaves the target ~12 seconds of RA off
+# center, which is fine as long as it stays well inside the frame.
+RA_OFFSET = Angle("0h00m30s")
 
 class ScheduleBase(UserDict):
     """
@@ -80,6 +91,7 @@ class Observation(ScheduleBase):
         priority=10,
         sequence=TEMPLATES / "timdimm_sequence.esq",
         template=TEMPLATES / "timdimm_schedule_template.esl",
+        ra_offset=RA_OFFSET,
     ):
         if "json" in Path(template).suffix.lower():
             self.from_json(filename=template)
@@ -94,7 +106,8 @@ class Observation(ScheduleBase):
         self.data["Priority"] = (
             f"{priority}"  # XML can only be strings so we make sure they are
         )
-        self.data["Coordinates"]["J2000RA"] = f"{ra}"
+        # ra is in hours, so the pointing offset gets applied in the same units
+        self.data["Coordinates"]["J2000RA"] = f"{ra + ra_offset.to_value(u.hourangle)}"
         self.data["Coordinates"]["J2000DE"] = f"{dec}"
         self.data["Sequence"] = str(sequence)
 

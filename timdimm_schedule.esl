@@ -6,7 +6,7 @@
         <Name>Sirius</Name>
         <Priority>1</Priority>
         <Coordinates>
-            <J2000RA>6.752477022200002</J2000RA>
+            <J2000RA>6.760810355533335</J2000RA>
             <J2000DE>-16.716115861</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -34,7 +34,7 @@
         <Name>Canopus</Name>
         <Priority>4</Priority>
         <Coordinates>
-            <J2000RA>6.3991971886000005</J2000RA>
+            <J2000RA>6.407530521933334</J2000RA>
             <J2000DE>-52.695661384</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -62,7 +62,7 @@
         <Name>Procyon</Name>
         <Priority>8</Priority>
         <Coordinates>
-            <J2000RA>7.655033193866668</J2000RA>
+            <J2000RA>7.663366527200002</J2000RA>
             <J2000DE>5.224987557</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -90,7 +90,7 @@
         <Name>Achernar</Name>
         <Priority>8</Priority>
         <Coordinates>
-            <J2000RA>1.628568188866667</J2000RA>
+            <J2000RA>1.6369015222000003</J2000RA>
             <J2000DE>-57.236752806</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -118,7 +118,7 @@
         <Name>Spica</Name>
         <Priority>10</Priority>
         <Coordinates>
-            <J2000RA>13.41988315746667</J2000RA>
+            <J2000RA>13.428216490800002</J2000RA>
             <J2000DE>-11.161319485</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -146,7 +146,7 @@
         <Name>Fomalhaut</Name>
         <Priority>11</Priority>
         <Coordinates>
-            <J2000RA>22.960846181400004</J2000RA>
+            <J2000RA>22.969179514733337</J2000RA>
             <J2000DE>-29.622237033</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -174,7 +174,7 @@
         <Name>Mimosa</Name>
         <Priority>12</Priority>
         <Coordinates>
-            <J2000RA>12.795352437466669</J2000RA>
+            <J2000RA>12.803685770800001</J2000RA>
             <J2000DE>-59.688771996</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -202,7 +202,7 @@
         <Name>Shaula</Name>
         <Priority>13</Priority>
         <Coordinates>
-            <J2000RA>17.56014447893334</J2000RA>
+            <J2000RA>17.56847781226667</J2000RA>
             <J2000DE>-37.103823551</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -230,7 +230,7 @@
         <Name>Bellatrix</Name>
         <Priority>13</Priority>
         <Coordinates>
-            <J2000RA>5.418850903800001</J2000RA>
+            <J2000RA>5.427184237133335</J2000RA>
             <J2000DE>6.349703264</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -258,7 +258,7 @@
         <Name>Miaplacidus</Name>
         <Priority>13</Priority>
         <Coordinates>
-            <J2000RA>9.219993738866668</J2000RA>
+            <J2000RA>9.2283270722</J2000RA>
             <J2000DE>-69.717207597</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -286,7 +286,7 @@
         <Name>Alnilam</Name>
         <Priority>13</Priority>
         <Coordinates>
-            <J2000RA>5.603559262733334</J2000RA>
+            <J2000RA>5.611892596066668</J2000RA>
             <J2000DE>-1.201919136</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -314,7 +314,7 @@
         <Name>Alnair</Name>
         <Priority>13</Priority>
         <Coordinates>
-            <J2000RA>22.137217980000003</J2000RA>
+            <J2000RA>22.145551313333335</J2000RA>
             <J2000DE>-46.96097438</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -342,7 +342,7 @@
         <Name>Wezen</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>7.139856680944668</J2000RA>
+            <J2000RA>7.1481900142780015</J2000RA>
             <J2000DE>-26.39319957889</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -370,7 +370,7 @@
         <Name>Kaus Australis</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>18.402866223333337</J2000RA>
+            <J2000RA>18.41119955666667</J2000RA>
             <J2000DE>-34.38461649</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -398,7 +398,7 @@
         <Name>The Sco</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>17.62198266666667</J2000RA>
+            <J2000RA>17.630316000000004</J2000RA>
             <J2000DE>-42.997841</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -426,7 +426,7 @@
         <Name>Atria</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>16.811081967333337</J2000RA>
+            <J2000RA>16.81941530066667</J2000RA>
             <J2000DE>-69.02771185</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -454,7 +454,7 @@
         <Name>Peacock</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>20.427460291333336</J2000RA>
+            <J2000RA>20.43579362466667</J2000RA>
             <J2000DE>-56.73508973</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -482,7 +482,7 @@
         <Name>Mirzam</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>6.378329264638667</J2000RA>
+            <J2000RA>6.386662597972001</J2000RA>
             <J2000DE>-17.95591870889</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -510,7 +510,7 @@
         <Name>Alphard</Name>
         <Priority>14</Priority>
         <Coordinates>
-            <J2000RA>9.459789639733335</J2000RA>
+            <J2000RA>9.468122973066668</J2000RA>
             <J2000DE>-8.658599532</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -538,7 +538,7 @@
         <Name>Nunki</Name>
         <Priority>15</Priority>
         <Coordinates>
-            <J2000RA>18.921090693733337</J2000RA>
+            <J2000RA>18.92942402706667</J2000RA>
             <J2000DE>-26.296724115</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -566,7 +566,7 @@
         <Name>Diphda</Name>
         <Priority>15</Priority>
         <Coordinates>
-            <J2000RA>0.7264919157333335</J2000RA>
+            <J2000RA>0.7348252490666668</J2000RA>
             <J2000DE>-17.986606316</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -594,7 +594,7 @@
         <Name>The Cen</Name>
         <Priority>15</Priority>
         <Coordinates>
-            <J2000RA>14.111381133333335</J2000RA>
+            <J2000RA>14.119714466666668</J2000RA>
             <J2000DE>-36.369831</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
@@ -622,7 +622,7 @@
         <Name>Saiph</Name>
         <Priority>15</Priority>
         <Coordinates>
-            <J2000RA>5.7959413445553345</J2000RA>
+            <J2000RA>5.804274677888668</J2000RA>
             <J2000DE>-9.66960491861</J2000DE>
         </Coordinates>
         <PositionAngle></PositionAngle>
