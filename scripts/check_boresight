@@ -1,0 +1,27 @@
+#!/bin/bash
+
+export PATH=$HOME/conda/envs/timdimm/bin:$HOME/conda/condabin:$HOME/timdimm_tng/scripts:$PATH
+export CONDA_PREFIX=$HOME/conda/envs/timdimm
+export CONDA_DEFAULT_ENV=timdimm
+
+repo_dir="${TIMDIMM_REPO_DIR:-$HOME/timdimm_tng}"
+lock_dir="${XDG_RUNTIME_DIR:-$HOME/.cache/timdimm}"
+
+if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+    echo "boresight corrector requires an inherited D-Bus session" >&2
+    exit 1
+fi
+
+cd "$repo_dir" || exit 1
+mkdir -p "$lock_dir"
+
+exec 9> "$lock_dir/boresight-correct.lock"
+if ! flock -n 9; then
+    exit 0
+fi
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] boresight corrector started"
+
+# the corrector tolerates kstars/ekos being absent or restarting, so it just runs for the
+# duration of the session
+exec boresight_correct

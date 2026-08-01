@@ -15,3 +15,7 @@ start_ekos > "$repo_dir/ekos.log" 2>&1 &
 if [[ "${KSTARS_WATCHDOG:-1}" == "1" ]]; then
     nohup "$repo_dir/scripts/check_kstars" >> "$repo_dir/kstars_watchdog.log" 2>&1 < /dev/null &
 fi
+
+if [[ "${BORESIGHT_CORRECT:-1}" == "1" ]]; then
+    nohup "$repo_dir/scripts/check_boresight" >> "$repo_dir/boresight.log" 2>&1 < /dev/null &
+fi
