@@ -59,6 +59,24 @@ class TestBoresightCorrector(unittest.TestCase):
         expected = 12.0 + ra_offset(DEC * u.deg, PIER_EAST).to_value(u.hourangle)
         self.assertAlmostEqual(result[0], expected, places=9)
 
+    def test_flip_is_handled_even_when_align_completed_in_between(self):
+        # the real meridian flip case: align finishes, the mount flips, and ekos starts a new
+        # align run still holding the coordinates we pushed it last time. we have to recognize
+        # those as ours and recorrect from the original target, not stack a second correction.
+        first = self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_WEST)
+        assert first is not None
+        self.corrector.update(ALIGN_COMPLETE, first[0], DEC, PIER_WEST)
+        result = self.corrector.update(ALIGN_PROGRESS, first[0], DEC, PIER_EAST)
+        assert result is not None
+        expected = 12.0 + ra_offset(DEC * u.deg, PIER_EAST).to_value(u.hourangle)
+        self.assertAlmostEqual(result[0], expected, places=9)
+
+    def test_echoed_target_is_left_alone_when_align_restarts_on_the_same_side(self):
+        first = self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_WEST)
+        assert first is not None
+        self.corrector.update(ALIGN_COMPLETE, first[0], DEC, PIER_WEST)
+        self.assertIsNone(self.corrector.update(ALIGN_PROGRESS, first[0], DEC, PIER_WEST))
+
     def test_unknown_pier_side_issues_no_correction(self):
         self.assertIsNone(self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_UNKNOWN))
 

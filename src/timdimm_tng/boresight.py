@@ -110,6 +110,10 @@ class BoresightCorrector:
     target, so overwriting the target while it is converging is enough to steer it. Feeding it
     a target repeatedly is harmless, but re-correcting a target we already corrected is not, so
     we remember the target we started from and always recompute the correction from that.
+
+    That memory has to outlive an individual align run. A meridian flip happens between runs,
+    and the correction reverses sign across it, so recorrecting the post-flip run has to start
+    from the original target rather than from the coordinates we pushed before the flip.
     """
 
     def __init__(self, tolerance=1 * u.arcsec):
@@ -129,8 +133,9 @@ class BoresightCorrector:
         the coordinates to hand back to the align module, or None to leave it alone.
         """
         if align_status not in ALIGN_ACTIVE:
-            self._base = None
-            self._issued = None
+            # deliberately keep _base/_issued. a meridian flip happens between align runs, and
+            # ekos starts the next run still holding the coordinates we pushed it, so forgetting
+            # them here would make us mistake our own corrected target for a fresh one.
             return None
 
         if pier_side not in (PIER_WEST, PIER_EAST):
