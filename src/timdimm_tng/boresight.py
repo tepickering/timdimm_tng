@@ -33,8 +33,9 @@ CHIP_HEIGHT = 1104
 STAR_X = 1030
 STAR_Y = 940
 
-# Ekos::ISD::Mount::PierSide. PIER_WEST means the OTA is on the west side of the pier, which is
-# how it sits when pointing east of the meridian.
+# Ekos::ISD::Mount::PierSide. Measured on sky 2026-08-02: PIER_EAST is what this mount reports
+# while pointing east of the meridian, i.e. the value names the side the counterweight swings to,
+# not the side the OTA sits on. Getting this backwards doubles the error instead of removing it.
 PIER_UNKNOWN = -1
 PIER_WEST = 0
 PIER_EAST = 1
@@ -82,9 +83,9 @@ def ra_offset(dec, pier_side):
     1/cos(dec). An unknown pier side yields no correction, which leaves the target near the edge
     of the chip rather than risking pushing it off.
     """
-    if pier_side == PIER_WEST:
+    if pier_side == PIER_EAST:
         sign = 1.0
-    elif pier_side == PIER_EAST:
+    elif pier_side == PIER_WEST:
         sign = -1.0
     else:
         return Angle(0.0, unit=u.hourangle)
@@ -195,9 +196,9 @@ def main():
                 corrected_ra, corrected_dec = correction
                 align.set_target_coords(corrected_ra, corrected_dec)
                 shift = (corrected_ra - float(ra)) * 3600
-                side = "west" if pier_side == PIER_WEST else "east"
+                side = "east" if pier_side == PIER_EAST else "west"
                 log.info(
-                    f"Boresight correction on {side} side of pier: "
+                    f"Boresight correction pointing {side} of the meridian: "
                     f"RA {ra:.6f} -> {corrected_ra:.6f} h ({shift:+.1f} s)"
                 )
             elif status in ALIGN_ACTIVE and pier_side == PIER_UNKNOWN:
