@@ -4,6 +4,18 @@ export PATH=$HOME/conda/envs/timdimm/bin:$HOME/conda/condabin:$HOME/timdimm_tng/
 export CONDA_PREFIX=$HOME/conda/envs/timdimm
 export CONDA_DEFAULT_ENV=timdimm
 
+# kstars leaves qt's default message handler in place unless "log to file" is enabled in its
+# settings, and that handler prints bare "category: message" with no time. qt's default handler
+# honors QT_MESSAGE_PATTERN, so ask it for a timestamp. this pattern is kstars' own (ksutils.cpp
+# Logging::UseFile) with zero-padded hours so the lines sort. if someone turns on "log to file",
+# kstars calls qSetMessagePattern() and overrides this, but then it's logging elsewhere anyway.
+# note: don't fold this into a ${VAR:-default}, bash ends the expansion at the first } inside the
+# pattern and mangles it.
+if [[ -z "${QT_MESSAGE_PATTERN:-}" ]]; then
+    QT_MESSAGE_PATTERN='[%{time yyyy-MM-dd hh:mm:ss.zzz t} %{if-debug}DEBG%{endif}%{if-info}INFO%{endif}%{if-warning}WARN%{endif}%{if-critical}CRIT%{endif}%{if-fatal}FATL%{endif}] %{if-category}[%{category}]%{endif} - %{message}'
+fi
+export QT_MESSAGE_PATTERN
+
 repo_dir="${TIMDIMM_REPO_DIR:-$HOME/timdimm_tng}"
 
 cd "$repo_dir" || exit 1
