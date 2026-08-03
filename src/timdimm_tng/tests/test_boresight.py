@@ -20,14 +20,15 @@ class TestBoresightSeparation(unittest.TestCase):
 
 
 class TestRAOffset(unittest.TestCase):
-    def test_pointing_east_of_the_meridian_jogs_east(self):
-        # this mount reports PIER_EAST while pointing east; confirmed on sky 2026-08-02
-        offset = ra_offset(-37.1236 * u.deg, PIER_EAST)
-        self.assertGreater(offset.to_value(u.hourangle) * 3600, 0)
-
-    def test_pointing_west_of_the_meridian_jogs_west(self):
+    def test_pointing_east_of_the_meridian_jogs_west(self):
+        # kstars logs this as "Pier Side: West (pointing East)", and the shift it applied on sky
+        # while pointing east was negative. confirmed 2026-08-02.
         offset = ra_offset(-37.1236 * u.deg, PIER_WEST)
         self.assertLess(offset.to_value(u.hourangle) * 3600, 0)
+
+    def test_pointing_west_of_the_meridian_jogs_east(self):
+        offset = ra_offset(-37.1236 * u.deg, PIER_EAST)
+        self.assertGreater(offset.to_value(u.hourangle) * 3600, 0)
 
     def test_magnitude_at_measured_declination(self):
         # 333.4" / (15 cos(-37.1236)) = 27.9 seconds of RA

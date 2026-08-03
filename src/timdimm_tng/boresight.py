@@ -33,9 +33,10 @@ CHIP_HEIGHT = 1104
 STAR_X = 1030
 STAR_Y = 940
 
-# Ekos::ISD::Mount::PierSide. Measured on sky 2026-08-02: PIER_EAST is what this mount reports
-# while pointing east of the meridian, i.e. the value names the side the counterweight swings to,
-# not the side the OTA sits on. Getting this backwards doubles the error instead of removing it.
+# Ekos::ISD::Mount::PierSide. The value names the side of the pier the OTA sits on, which is the
+# opposite of the side of the meridian it points at: kstars logs "Pier Side: West (pointing East)".
+# So PIER_WEST takes the westward (negative) offset. Getting this backwards doubles the error
+# instead of removing it.
 PIER_UNKNOWN = -1
 PIER_WEST = 0
 PIER_EAST = 1
@@ -114,9 +115,15 @@ class BoresightCorrector:
     That memory has to outlive an individual align run. A meridian flip happens between runs,
     and the correction reverses sign across it, so recorrecting the post-flip run has to start
     from the original target rather than from the coordinates we pushed before the flip.
+
+    Recognizing our own target cannot rely on an exact echo. When ekos starts a flip it
+    overwrites the align target with the mount's current pointing, which is where our correction
+    plus align's own residual actually left it, so the post-flip run comes back to us a few tens
+    of arcseconds off what we issued. The tolerance has to swallow that residual while staying
+    far below the correction itself (>= 5.5', growing as 1/cos(dec)), which a minute of arc does.
     """
 
-    def __init__(self, tolerance=1 * u.arcsec):
+    def __init__(self, tolerance=1 * u.arcmin):
         self.tolerance = Angle(tolerance)
         self._base = None
         self._issued = None
@@ -201,7 +208,7 @@ def main():
                 corrected_ra, corrected_dec = correction
                 align.set_target_coords(corrected_ra, corrected_dec)
                 shift = (corrected_ra - float(ra)) * 3600
-                side = "east" if pier_side == PIER_EAST else "west"
+                side = "west" if pier_side == PIER_EAST else "east"
                 log.info(
                     f"Boresight correction pointing {side} of the meridian: "
                     f"RA {ra:.6f} -> {corrected_ra:.6f} h ({shift:+.1f} s)"

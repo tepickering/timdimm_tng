@@ -71,6 +71,27 @@ class TestBoresightCorrector(unittest.TestCase):
         expected = 12.0 + ra_offset(DEC * u.deg, PIER_EAST).to_value(u.hourangle)
         self.assertAlmostEqual(result[0], expected, places=9)
 
+    def test_flip_destination_is_recognized_as_our_own_target(self):
+        # ekos overwrites the align target with the mount's current pointing when it starts a
+        # meridian flip, so the post-flip align run starts from our corrected coordinates plus
+        # whatever align and guiding residual was on the sky, not from an exact echo.
+        first = self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_WEST)
+        assert first is not None
+        pointing = first[0] + 20 / 15 / 3600  # 20" of residual, well inside align tolerance
+        result = self.corrector.update(ALIGN_PROGRESS, pointing, DEC, PIER_EAST)
+        assert result is not None
+        expected = 12.0 + ra_offset(DEC * u.deg, PIER_EAST).to_value(u.hourangle)
+        self.assertAlmostEqual(result[0], expected, places=9)
+
+    def test_a_genuinely_new_target_is_not_mistaken_for_our_own(self):
+        first = self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_WEST)
+        assert first is not None
+        # a different star, closer than the correction itself but far outside the residual
+        result = self.corrector.update(ALIGN_PROGRESS, first[0] + 0.05, DEC, PIER_WEST)
+        assert result is not None
+        expected = first[0] + 0.05 + ra_offset(DEC * u.deg, PIER_WEST).to_value(u.hourangle)
+        self.assertAlmostEqual(result[0], expected, places=9)
+
     def test_echoed_target_is_left_alone_when_align_restarts_on_the_same_side(self):
         first = self.corrector.update(ALIGN_PROGRESS, 12.0, DEC, PIER_WEST)
         assert first is not None
