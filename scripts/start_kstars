@@ -8,6 +8,23 @@ repo_dir="${TIMDIMM_REPO_DIR:-$HOME/timdimm_tng}"
 
 cd "$repo_dir" || exit 1
 
+# kstars truncates its log on every start, so keep the previous session before launching a new
+# one. the watchdog can restart kstars twice within the same second, so never overwrite an
+# existing archive: a lost log is a night we can't debug.
+if [[ -e "$repo_dir/kstars.log" ]]; then
+    base="$repo_dir/kstars-$(date '+%Y%m%d-%H%M%S')"
+    archive="$base.log"
+    suffix=1
+    while [[ -e "$archive" || -e "$archive.gz" ]]; do
+        archive="$base.$suffix.log"
+        suffix=$((suffix + 1))
+    done
+    # gzip of a night's log takes a few seconds, so let it finish in the background, but do the
+    # rename first so kstars can't recreate kstars.log underneath us
+    mv -- "$repo_dir/kstars.log" "$archive"
+    gzip -- "$archive" &
+fi
+
 kstars > "$repo_dir/kstars.log" 2>&1 &
 sleep 3
 start_ekos > "$repo_dir/ekos.log" 2>&1 &
