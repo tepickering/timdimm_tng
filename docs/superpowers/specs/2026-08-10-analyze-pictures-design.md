@@ -50,10 +50,11 @@ to infer it.
 
 ## Components
 
-### `find_images(root, night=None, since=None)`
+### `find_images(root, night=None)`
 
-Walks `root/<target>/<imagetype>/*.fits` and `*.fits.gz`, reads headers only, returns
-`(path, header)` pairs. A night runs local noon to local noon at the site — longitude from
+Walks `root/<target>/<imagetype>/*.fits` and `*.fits.gz` and returns a sorted list of paths.
+When a night is given it reads headers only, never pixel data, to filter on `DATE-OBS`.
+A night runs local noon to local noon at the site — longitude from
 `SITELONG`, falling back to the SAAO location in `locations.py` — and is labelled by its
 starting date. `--last-night` is the daily-cron form.
 
@@ -118,12 +119,12 @@ sigma_bkg_e = bkg_rms * egain
 snr = flux_e / sqrt(flux_e + n_pix * sigma_bkg_e**2)
 ```
 
-**Fallback.** The 272 anchor is specific to the ASI432MM, so it is applied only when
+**Fallback.** This calibration is specific to the ASI432MM, so it is applied only when
 `INSTRUME` matches that camera. For any other camera the script falls back to the
 background-limited `flux / (bkg_rms * sqrt(n_pix))`, leaves `egain` as NaN, and records
 which form was used in a `snr_method` column, so mixed-camera tables stay interpretable.
 
-### `analyze_image(path, header)`
+### `analyze_image(path, root=None)`
 
 Combines the above into one row. **Never raises.** A frame with zero or one detection
 yields a row with `n_stars` set, NaNs elsewhere, and a `status` string, so bad frames stay
