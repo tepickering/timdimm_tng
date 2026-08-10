@@ -22,11 +22,6 @@
 </Frame>
 <Temperature force='false'>0</Temperature>
 <Type>Light</Type>
-<Prefix>
-<FilterEnabled>0</FilterEnabled>
-<ExpEnabled>0</ExpEnabled>
-<TimeStampEnabled>0</TimeStampEnabled>
-</Prefix>
 <Count>1</Count>
 <Delay>0</Delay>
 <PreCaptureScript>/home/astronaut/timdimm_tng/scripts/ekos_hdimm/precapture.py</PreCaptureScript>

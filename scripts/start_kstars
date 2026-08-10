@@ -4,9 +4,38 @@ export PATH=$HOME/conda/envs/timdimm/bin:$HOME/conda/condabin:$HOME/timdimm_tng/
 export CONDA_PREFIX=$HOME/conda/envs/timdimm
 export CONDA_DEFAULT_ENV=timdimm
 
+# kstars leaves qt's default message handler in place unless "log to file" is enabled in its
+# settings, and that handler prints bare "category: message" with no time. qt's default handler
+# honors QT_MESSAGE_PATTERN, so ask it for a timestamp. this pattern is kstars' own (ksutils.cpp
+# Logging::UseFile) with zero-padded hours so the lines sort. if someone turns on "log to file",
+# kstars calls qSetMessagePattern() and overrides this, but then it's logging elsewhere anyway.
+# note: don't fold this into a ${VAR:-default}, bash ends the expansion at the first } inside the
+# pattern and mangles it.
+if [[ -z "${QT_MESSAGE_PATTERN:-}" ]]; then
+    QT_MESSAGE_PATTERN='[%{time yyyy-MM-dd hh:mm:ss.zzz t} %{if-debug}DEBG%{endif}%{if-info}INFO%{endif}%{if-warning}WARN%{endif}%{if-critical}CRIT%{endif}%{if-fatal}FATL%{endif}] %{if-category}[%{category}]%{endif} - %{message}'
+fi
+export QT_MESSAGE_PATTERN
+
 repo_dir="${TIMDIMM_REPO_DIR:-$HOME/timdimm_tng}"
 
 cd "$repo_dir" || exit 1
+
+# kstars truncates its log on every start, so keep the previous session before launching a new
+# one. the watchdog can restart kstars twice within the same second, so never overwrite an
+# existing archive: a lost log is a night we can't debug.
+if [[ -e "$repo_dir/kstars.log" ]]; then
+    base="$repo_dir/kstars-$(date '+%Y%m%d-%H%M%S')"
+    archive="$base.log"
+    suffix=1
+    while [[ -e "$archive" || -e "$archive.gz" ]]; do
+        archive="$base.$suffix.log"
+        suffix=$((suffix + 1))
+    done
+    # gzip of a night's log takes a few seconds, so let it finish in the background, but do the
+    # rename first so kstars can't recreate kstars.log underneath us
+    mv -- "$repo_dir/kstars.log" "$archive"
+    gzip -- "$archive" &
+fi
 
 kstars > "$repo_dir/kstars.log" 2>&1 &
 sleep 3
@@ -14,4 +43,8 @@ start_ekos > "$repo_dir/ekos.log" 2>&1 &
 
 if [[ "${KSTARS_WATCHDOG:-1}" == "1" ]]; then
     nohup "$repo_dir/scripts/check_kstars" >> "$repo_dir/kstars_watchdog.log" 2>&1 < /dev/null &
+fi
+
+if [[ "${BORESIGHT_CORRECT:-1}" == "1" ]]; then
+    nohup "$repo_dir/scripts/check_boresight" >> "$repo_dir/boresight.log" 2>&1 < /dev/null &
 fi
