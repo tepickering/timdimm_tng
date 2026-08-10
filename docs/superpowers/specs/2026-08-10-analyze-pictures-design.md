@@ -30,6 +30,7 @@ One row per image, wide. Columns:
   `OBJCTAZ`, `OBJCTALT`, `RA`, `DEC`, `PIERSIDE`, `EQUINOX`, `DATE-OBS`, `GAIN`, `OFFSET`,
   `OBJECT`, lower-cased and with `-` mapped to `_`
 - **Background:** `bkg_median`, `bkg_rms`, `bkg_mean`
+- **Detector:** `egain` (e- per stored count), `bitshift`, `snr_method`
 - **Per star**, for `star0` and `star1`: `x`, `y`, `peak`, `flux`, `snr`, `fwhm`,
   `fwhm_gauss`, `sigma_major`, `sigma_minor`, `ellip`, `pa`, `sharpness`, `concentration`,
   `fit_ok`
@@ -78,13 +79,45 @@ the frame is almost entirely background, so this is well constrained.
   strehl expression already in `analyze_cube.moments()`
 - `sharpness` from DAOStarFinder
 
-### SNR definition
+### Gain and SNR
 
-`snr = flux / (bkg_rms * sqrt(n_pix))` — background-limited, in ADU.
+`GAIN = 350` is the ZWO gain *index* in units of 0.1 dB, not e-/ADU, but the ASI432MM
+response is known well enough to convert it.
 
-`GAIN = 350` is the ZWO gain *index* in units of 0.1 dB, **not** e-/ADU, so the header does
-not support a correct CCD-equation SNR. Rather than compute a wrong Poisson term, the
-background-limited form is used and this limitation is recorded in the column description.
+**Bit depth.** The IMX432 ADC is 12-bit and the driver left-shifts by 4 into uint16: every
+pixel value in the archived frames is a multiple of 16. The script **detects the shift**
+rather than assuming it — the greatest power of two dividing every pixel value, capped at
+16 — so a driver change that stops shifting does not silently corrupt the gain scaling. The
+detected value is stored as `bitshift`.
+
+**eGain.** Unity gain for the ASI432MM is at index 272, giving
+
+```
+egain_12bit = 10 ** ((272 - gain) / 200)      # e-/ADU at 12-bit
+egain       = egain_12bit / bitshift          # e- per stored count
+```
+
+Cross-checks against ZWO's published curves: at gain 0 this gives 22.9 e-/ADU against a
+plotted intercept of 23.7, which is itself `FW / 2**12 = 97000 / 4096 = 23.68` — so the
+functional form is right and the 272 anchor reproduces it to 3%. At gain 350 it gives 0.407
+e-/ADU_12, under which ZWO's quoted ~3.0 e- read noise becomes 118 stored counts; the
+measured background RMS in the archived frames is 100 counts, consistent with read noise
+plus a small sky contribution.
+
+**SNR.** With `egain` in hand, the CCD equation applies directly. `bkg_rms` already
+contains read noise and sky, so converting it to electrons gives the per-pixel background
+noise without needing them separately:
+
+```
+flux_e = flux * egain
+sigma_bkg_e = bkg_rms * egain
+snr = flux_e / sqrt(flux_e + n_pix * sigma_bkg_e**2)
+```
+
+**Fallback.** The 272 anchor is specific to the ASI432MM, so it is applied only when
+`INSTRUME` matches that camera. For any other camera the script falls back to the
+background-limited `flux / (bkg_rms * sqrt(n_pix))`, leaves `egain` as NaN, and records
+which form was used in a `snr_method` column, so mixed-camera tables stay interpretable.
 
 ### `analyze_image(path, header)`
 
@@ -116,6 +149,9 @@ known exactly:
 - a blank frame: asserts the no-detection path produces a row, not an exception
 - a single-star frame: asserts the one-detection path
 - night-boundary selection across local noon, including a frame either side
+- gain conversion: `egain` at index 272 is 1.0 e-/ADU_12, at index 0 is within 5% of 23.7,
+  bit-shift detection returns 16 for shifted data and 1 for unshifted, and a non-ASI432MM
+  `INSTRUME` takes the background-limited fallback
 
 The five archived Achernar frames are a smoke test that the pipeline runs end to end on
 real data. They are not a source of assertions, since their true values are unknown.
