@@ -90,19 +90,23 @@ rather than assuming it — the greatest power of two dividing every pixel value
 16 — so a driver change that stops shifting does not silently corrupt the gain scaling. The
 detected value is stored as `bitshift`.
 
-**eGain.** Unity gain for the ASI432MM is at index 272, giving
+**eGain.** The gain index is in 0.1 dB, so eGain falls as `10 ** (-gain/200)`. The curve is
+anchored at its gain-0 intercept, `FW / 2**12 = 97000 / 4096 = 23.68` e-/ADU, which is
+where ZWO's own EGAIN and full-well panels agree with each other:
 
 ```
-egain_12bit = 10 ** ((272 - gain) / 200)      # e-/ADU at 12-bit
+EGAIN_0     = 97000 / 2**12                   # 23.68 e-/ADU at gain 0
+egain_12bit = EGAIN_0 * 10 ** (-gain / 200)   # e-/ADU at 12-bit
 egain       = egain_12bit / bitshift          # e- per stored count
 ```
 
-Cross-checks against ZWO's published curves: at gain 0 this gives 22.9 e-/ADU against a
-plotted intercept of 23.7, which is itself `FW / 2**12 = 97000 / 4096 = 23.68` — so the
-functional form is right and the 272 anchor reproduces it to 3%. At gain 350 it gives 0.407
-e-/ADU_12, under which ZWO's quoted ~3.0 e- read noise becomes 118 stored counts; the
-measured background RMS in the archived frames is 100 counts, consistent with read noise
-plus a small sky contribution.
+This puts unity gain at index 274.9 rather than the 272 ZWO publishes — a 1% offset,
+accepted in exchange for matching the plotted curve across the whole range instead of at
+one point.
+
+Cross-check: at gain 350 this gives 0.421 e-/ADU_12, under which ZWO's quoted ~3.0 e- read
+noise becomes 114 stored counts. The measured background RMS in the archived frames is 100
+counts, consistent with read noise plus a small sky contribution.
 
 **SNR.** With `egain` in hand, the CCD equation applies directly. `bkg_rms` already
 contains read noise and sky, so converting it to electrons gives the per-pixel background
@@ -149,7 +153,7 @@ known exactly:
 - a blank frame: asserts the no-detection path produces a row, not an exception
 - a single-star frame: asserts the one-detection path
 - night-boundary selection across local noon, including a frame either side
-- gain conversion: `egain` at index 272 is 1.0 e-/ADU_12, at index 0 is within 5% of 23.7,
+- gain conversion: `egain` at index 0 is 23.68 e-/ADU_12, unity is crossed at index 274.9,
   bit-shift detection returns 16 for shifted data and 1 for unshifted, and a non-ASI432MM
   `INSTRUME` takes the background-limited fallback
 
