@@ -6,8 +6,9 @@ from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 from astropy.table import Table
 
-from timdimm_tng.analyze_pictures import (analyze_image, build_table, find_images, last_night, main,
-                                          measure_background, measure_stars, merge_tables, night_of)
+from timdimm_tng.analyze_pictures import (analyze_image, build_table, cache_path, find_images, last_night, main,
+                                          measure_background, measure_stars, merge_tables, night_of, read_cached_rows,
+                                          sort_by_time, write_cached_row)
 
 
 def make_test_frame(positions, fluxes, sigma_x=3.0, sigma_y=3.0, theta=0.0,
@@ -385,6 +386,111 @@ def test_a_read_error_row_still_builds_and_writes_a_table(tmp_path):
 def test_cli_reports_when_no_images_match(tmp_path, capsys):
     assert main(["--root", str(tmp_path), "--night", "1999-01-01", "-o", str(tmp_path / "x.ecsv")]) == 1
     assert "no images" in capsys.readouterr().out.lower()
+
+
+def test_cache_path_is_unique_per_source_file(tmp_path):
+    a = cache_path(tmp_path, "Achernar/Light/a.fits")
+    b = cache_path(tmp_path, "Canopus/Light/a.fits")
+    assert a != b
+    assert a.parent == tmp_path
+    assert a.suffix == ".ecsv"
+
+
+def test_a_cached_row_round_trips(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    cache = tmp_path / "cache"
+    write_cached_row(cache, row)
+    table = read_cached_rows(cache)
+    assert len(table) == 1
+    assert table["filename"][0] == "Achernar/Light/Achernar_Light_001.fits"
+    assert table["star0_flux"][0] == pytest.approx(row["star0_flux"])
+
+
+def test_reading_an_empty_cache_returns_nothing(tmp_path):
+    assert read_cached_rows(tmp_path / "missing") is None
+    (tmp_path / "empty").mkdir()
+    assert read_cached_rows(tmp_path / "empty") is None
+
+
+def test_sort_by_time_orders_rows_by_date_obs(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    late = write_frame(tmp_path, frame, name="a.fits", **{"DATE-OBS": "2025-10-09T22:00:00.000"})
+    early = write_frame(tmp_path, frame, name="b.fits", **{"DATE-OBS": "2025-10-09T20:00:00.000"})
+    table = sort_by_time(build_table([analyze_image(late, root=tmp_path), analyze_image(early, root=tmp_path)]))
+    assert list(table["filename"]) == ["Achernar/Light/b.fits", "Achernar/Light/a.fits"]
+
+
+def test_cli_caches_each_frame_as_its_own_table(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits")
+    write_frame(tmp_path, frame, name="b.fits")
+    out = tmp_path / "out.ecsv"
+    cache = tmp_path / "cache"
+    assert main(["--root", str(tmp_path), "--all", "-o", str(out), "--cache-dir", str(cache)]) == 0
+    assert len(list(cache.glob("*.ecsv"))) == 2
+
+
+def test_cli_reuses_cached_rows_and_reprocess_overrides_them(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    out = tmp_path / "out.ecsv"
+    cache = tmp_path / "cache"
+    args = ["--root", str(tmp_path), "--all", "-o", str(out), "--cache-dir", str(cache)]
+    main(args)
+
+    # mark the cached row so it is obvious whether it was reused or recomputed
+    cached = list(cache.glob("*.ecsv"))[0]
+    table = Table.read(cached)
+    # replace rather than assign: the column is only as wide as "ok" and would truncate the marker
+    table.replace_column("status", ["stale"])
+    table.write(cached, overwrite=True)
+
+    main(args)
+    assert Table.read(out)["status"][0] == "stale"
+
+    main(args + ["--reprocess"])
+    assert Table.read(out)["status"][0] == "ok"
+
+
+def test_cli_output_is_sorted_by_time_not_by_filename(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits", **{"DATE-OBS": "2025-10-09T22:00:00.000"})
+    write_frame(tmp_path, frame, name="b.fits", **{"DATE-OBS": "2025-10-09T20:00:00.000"})
+    out = tmp_path / "out.ecsv"
+    main(["--root", str(tmp_path), "--all", "-o", str(out)])
+    assert list(Table.read(out)["filename"]) == ["Achernar/Light/b.fits", "Achernar/Light/a.fits"]
+
+
+def test_cli_output_accumulates_frames_across_runs(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits")
+    out = tmp_path / "out.ecsv"
+    args = ["--root", str(tmp_path), "--all", "-o", str(out)]
+    main(args)
+
+    # a later night adds frames; the earlier rows must survive without reanalyzing them
+    write_frame(tmp_path, frame, name="b.fits", **{"DATE-OBS": "2025-10-12T20:00:00.000"})
+    main(args)
+    assert len(Table.read(out)) == 2
+
+
+def test_cli_reports_progress_for_each_frame(tmp_path, capsys):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits")
+    write_frame(tmp_path, frame, name="b.fits")
+    main(["--root", str(tmp_path), "--all", "-o", str(tmp_path / "out.ecsv")])
+    output = capsys.readouterr().out
+    assert "[1/2]" in output
+    assert "[2/2]" in output
+    assert "a.fits" in output
+
+
+def test_cli_quiet_suppresses_progress(tmp_path, capsys):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    main(["--root", str(tmp_path), "--all", "-o", str(tmp_path / "out.ecsv"), "--quiet"])
+    output = capsys.readouterr().out
+    assert "[1/1]" not in output
+    assert "wrote 1 rows" in output
 
 
 ARCHIVE = Path.home() / "SAAO" / "timdimm_data" / "Pictures"

@@ -288,6 +288,16 @@ def _empty_row():
     return row
 
 
+def relative_name(path, root=None):
+    """The name a frame is recorded under: its path relative to the root, or just its basename."""
+    path = Path(path)
+    root = Path(root) if root is not None else path.parent
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return path.name
+
+
 def analyze_image(path, root=None):
     """
     Measure one FITS frame and return a flat row.
@@ -298,11 +308,7 @@ def analyze_image(path, root=None):
     """
     path = Path(path)
     row = _empty_row()
-    root = Path(root) if root is not None else path.parent
-    try:
-        row["filename"] = str(path.relative_to(root))
-    except ValueError:
-        row["filename"] = path.name
+    row["filename"] = relative_name(path, root)
     # <root>/<target>/<imagetype>/<file>
     row["target"] = path.parent.parent.name
 
@@ -376,6 +382,64 @@ def merge_tables(existing, new):
     return merged
 
 
+def sort_by_time(table):
+    """Sort a table into time order, breaking ties on filename so the order is reproducible."""
+    if len(table) == 0:
+        return table
+    table.sort(["date_obs", "filename"])
+    return table
+
+
+def cache_path(cache_dir, filename):
+    """
+    Where one frame's row is cached. Directory separators become double underscores, so the flat
+    cache directory keeps one entry per source frame even when two targets share a file name.
+    """
+    return Path(cache_dir) / (str(filename).replace("/", "__") + ".ecsv")
+
+
+def write_cached_row(cache_dir, row):
+    """
+    Cache one frame's row as a single-row ECSV, written as it is measured.
+
+    A run over the whole archive takes hours; holding every row in memory until the end means an
+    interrupted run leaves nothing behind. Writing each row as it arrives makes the run resumable.
+    """
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = cache_path(cache_dir, row["filename"])
+    build_table([row]).write(path, format="ascii.ecsv", overwrite=True)
+    return path
+
+
+def read_cached_rows(cache_dir):
+    """Stack every cached row into one table, or return None if the cache holds nothing usable."""
+    cache_dir = Path(cache_dir)
+    if not cache_dir.is_dir():
+        return None
+    tables = []
+    for path in sorted(cache_dir.glob("*.ecsv")):
+        try:
+            tables.append(Table.read(path, format="ascii.ecsv"))
+        except Exception as error:
+            print(f"skipping unreadable cache entry {path.name}: {error}")
+    if not tables:
+        return None
+    return _describe(vstack(tables, metadata_conflicts="silent"))
+
+
+def _progress(index, total, name, row=None):
+    """One line per frame, so a long run over the archive shows where it has got to."""
+    if row is None:
+        note = "cached"
+    elif row["status"] != "ok":
+        note = row["status"]
+    else:
+        note = (f"{row['n_stars']} stars  fwhm {row['star0_fwhm']:.1f}/{row['star1_fwhm']:.1f} pix"
+                f"  sep {row['sep_pix']:.1f} pix")
+    print(f"[{index}/{total}] {name}  {note}", flush=True)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Analyze the single exposures taken before each seeing measurement")
     parser.add_argument("--root", default=str(Path.home() / "Pictures"), help="directory holding <target>/<imagetype>/")
@@ -385,8 +449,15 @@ def main(argv=None):
     selection.add_argument("--last-night", action="store_true", help="process the previous night")
     parser.add_argument("-o", "--output", required=True, help="output table")
     parser.add_argument("--format", choices=["ecsv", "csv"], default="ecsv", help="output format")
+    parser.add_argument("--cache-dir", help="per-frame result cache; defaults to <output>.parts")
+    parser.add_argument("--reprocess", action="store_true", help="reanalyze frames that are already cached")
     parser.add_argument("--append", action="store_true", help="merge into an existing table, replacing matching rows")
+    parser.add_argument("-q", "--quiet", action="store_true", help="suppress per-frame progress")
     args = parser.parse_args(argv)
+
+    output = Path(args.output)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else output.with_name(output.name + ".parts")
+    table_format = "ascii.ecsv" if args.format == "ecsv" else "ascii.csv"
 
     night = last_night() if args.last_night else args.night
     paths = find_images(args.root, night=night)
@@ -394,13 +465,28 @@ def main(argv=None):
         print(f"no images found under {args.root}" + (f" for night {night}" if night else ""))
         return 1
 
-    table = build_table([analyze_image(path, root=args.root) for path in paths])
+    total = len(paths)
+    for index, path in enumerate(paths, start=1):
+        name = relative_name(path, args.root)
+        if not args.reprocess and cache_path(cache_dir, name).exists():
+            if not args.quiet:
+                _progress(index, total, name)
+            continue
+        row = analyze_image(path, root=args.root)
+        write_cached_row(cache_dir, row)
+        if not args.quiet:
+            _progress(index, total, name, row)
 
-    output = Path(args.output)
+    # every row now lives on disk; the output is just the cache collected and put in time order
+    table = read_cached_rows(cache_dir)
+    if table is None:
+        print(f"no results cached in {cache_dir}")
+        return 1
+
     if args.append and output.exists():
-        existing = Table.read(output, format="ascii.ecsv" if args.format == "ecsv" else "ascii.csv")
-        table = _describe(merge_tables(existing, table))
+        table = _describe(merge_tables(Table.read(output, format=table_format), table))
 
-    table.write(output, format="ascii.ecsv" if args.format == "ecsv" else "ascii.csv", overwrite=True)
+    table = sort_by_time(table)
+    table.write(output, format=table_format, overwrite=True)
     print(f"wrote {len(table)} rows to {output}")
     return 0
