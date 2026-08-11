@@ -7,13 +7,18 @@ table, for batch use over the archive and daily use on the previous night.
 """
 
 import warnings
+from pathlib import Path
 
 import numpy as np
+from astropy.io import fits
 from astropy.modeling import fitting, models
 from astropy.stats import sigma_clipped_stats
+from astropy.time import Time, TimeDelta
 from photutils.aperture import ApertureStats, CircularAnnulus, CircularAperture
 from photutils.detection import DAOStarFinder
 from photutils.utils.exceptions import NoDetectionsWarning
+
+from timdimm_tng.detector import egain_from_header
 
 #: arcsec/pixel for 9 um pixels at 2500 mm, matching the SCALE keyword
 DEFAULT_PIXEL_SCALE = 0.7427
@@ -30,6 +35,26 @@ MAX_APER_RADIUS = 40.0
 
 #: FWHM in pixels handed to DAOStarFinder for detection only
 DETECTION_FWHM = 5.0
+
+#: SAAO longitude in degrees east, used when a frame has no SITELONG
+SAAO_LONGITUDE = 20.8107
+
+#: the header subset requested for the output table, from header.txt
+HEADER_KEYS = [
+    "EXPTIME", "CCD-TEMP", "AIRMASS", "OBJCTAZ", "OBJCTALT", "RA", "DEC",
+    "PIERSIDE", "EQUINOX", "DATE-OBS", "GAIN", "OFFSET", "OBJECT",
+]
+
+#: per-star measurements copied into star0_*/star1_* columns
+STAR_KEYS = [
+    "x", "y", "peak", "flux", "snr", "fwhm", "fwhm_gauss", "sigma_major", "sigma_minor",
+    "ellip", "pa", "sharpness", "concentration", "fit_ok", "aper_radius", "n_pix",
+]
+
+#: header keywords whose values are strings, so empty rows can be typed correctly
+HEADER_STRING_KEYS = {"PIERSIDE", "DATE-OBS", "OBJECT"}
+
+NAN = float("nan")
 
 
 def measure_background(data):
@@ -167,3 +192,99 @@ def measure_stars(data, bkg_rms, egain=float("nan"), pixel_scale=DEFAULT_PIXEL_S
             "n_pix": n_pix,
         })
     return stars
+
+
+def night_of(date_obs, sitelong=None):
+    """
+    Label for the observing night: the local-solar-time date at the start of the night.
+
+    Nights run local noon to local noon, so subtracting 12 hours from the local time and taking
+    the date gives every frame in one night the same label.
+    """
+    if not date_obs:
+        return ""
+    longitude = SAAO_LONGITUDE if sitelong is None else float(sitelong)
+    local = Time(date_obs, format="isot", scale="utc") + TimeDelta(longitude / 15.0 * 3600.0, format="sec")
+    return (local - TimeDelta(12.0 * 3600.0, format="sec")).isot[:10]
+
+
+def _column_name(key):
+    """FITS keyword to column name: lower case, dashes to underscores."""
+    return key.lower().replace("-", "_")
+
+
+def _empty_row():
+    """
+    A row with every column present and empty, so the table schema never varies.
+
+    Empty values are typed by column: "" for string keywords and NaN for numeric ones. Using None
+    would give an object-dtype column, which vstacks badly against a properly typed column from
+    another run and makes --append fragile.
+    """
+    row = {"filename": "", "target": "", "night": "", "status": "ok", "n_stars": 0}
+    row.update({_column_name(key): ("" if key in HEADER_STRING_KEYS else NAN) for key in HEADER_KEYS})
+    row.update({"bkg_mean": NAN, "bkg_median": NAN, "bkg_rms": NAN})
+    row.update({"egain": NAN, "bitshift": 0, "snr_method": ""})
+    for index in (0, 1):
+        row.update({f"star{index}_{key}": (False if key == "fit_ok" else NAN) for key in STAR_KEYS})
+    row.update({"sep_pix": NAN, "sep_arcsec": NAN, "sep_pa": NAN, "flux_ratio": NAN})
+    return row
+
+
+def analyze_image(path, root=None):
+    """
+    Measure one FITS frame and return a flat row.
+
+    Never raises: an unreadable file or a frame with too few detections still returns a row, with
+    `status` saying what happened, so a night that produced nothing stays distinguishable from a
+    night that was never processed.
+    """
+    path = Path(path)
+    row = _empty_row()
+    root = Path(root) if root is not None else path.parent
+    try:
+        row["filename"] = str(path.relative_to(root))
+    except ValueError:
+        row["filename"] = path.name
+    # <root>/<target>/<imagetype>/<file>
+    row["target"] = path.parent.parent.name
+
+    try:
+        with fits.open(path) as hdulist:
+            header = hdulist[0].header
+            data = hdulist[0].data.astype(float)
+    except Exception as error:
+        row["status"] = f"read error: {error}"
+        return row
+
+    for key in HEADER_KEYS:
+        value = header.get(key)
+        row[_column_name(key)] = value.strip() if isinstance(value, str) else value
+    row["night"] = night_of(header.get("DATE-OBS"), header.get("SITELONG"))
+
+    row.update(measure_background(data))
+    egain, bitshift, snr_method = egain_from_header(header, data)
+    row.update({"egain": egain, "bitshift": bitshift, "snr_method": snr_method})
+
+    pixel_scale = float(header.get("SCALE", DEFAULT_PIXEL_SCALE))
+    stars = measure_stars(data, row["bkg_rms"], egain=egain, pixel_scale=pixel_scale)
+    row["n_stars"] = len(stars)
+
+    for index, star in enumerate(stars):
+        for key in STAR_KEYS:
+            row[f"star{index}_{key}"] = star[key]
+
+    if len(stars) == 2:
+        dx = stars[1]["x"] - stars[0]["x"]
+        dy = stars[1]["y"] - stars[0]["y"]
+        row["sep_pix"] = float(np.hypot(dx, dy))
+        row["sep_arcsec"] = row["sep_pix"] * pixel_scale
+        row["sep_pa"] = float(np.degrees(np.arctan2(dy, dx)))
+        if stars[1]["flux"] != 0:
+            row["flux_ratio"] = stars[0]["flux"] / stars[1]["flux"]
+    elif len(stars) == 1:
+        row["status"] = "1 star detected"
+    else:
+        row["status"] = "no stars detected"
+
+    return row

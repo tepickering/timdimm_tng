@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 
-from timdimm_tng.analyze_pictures import measure_background, measure_stars
+from timdimm_tng.analyze_pictures import analyze_image, measure_background, measure_stars
 
 
 def make_test_frame(positions, fluxes, sigma_x=3.0, sigma_y=3.0, theta=0.0,
@@ -138,3 +139,124 @@ def test_a_single_spot_returns_one_measurement():
     frame = make_test_frame([(120, 150)], [1.0e5])
     bkg = measure_background(frame)
     assert len(measure_stars(frame, bkg["bkg_rms"])) == 1
+
+
+def write_frame(tmp_path, frame, name="Achernar_Light_001.fits", **header_kwargs):
+    """Write a synthetic frame to a FITS file with a realistic header."""
+    header = fits.Header()
+    header["INSTRUME"] = "ZWO CCD ASI432MM"
+    header["EXPTIME"] = 0.001
+    header["CCD-TEMP"] = 22.0
+    header["AIRMASS"] = 1.4
+    header["OBJCTAZ"] = 140.6
+    header["OBJCTALT"] = 45.3
+    header["RA"] = 24.42
+    header["DEC"] = -57.23
+    header["PIERSIDE"] = "WEST"
+    header["EQUINOX"] = 2000
+    header["DATE-OBS"] = "2025-10-09T19:19:29.279"
+    header["GAIN"] = 350
+    header["OFFSET"] = 10
+    header["OBJECT"] = "Achernar"
+    header["SCALE"] = 0.74268
+    header["SITELONG"] = 20.94556
+    for key, value in header_kwargs.items():
+        header[key] = value
+    path = tmp_path / "Achernar" / "Light"
+    path.mkdir(parents=True, exist_ok=True)
+    # store as 12-bit data left-shifted into uint16, as the driver does
+    counts = (np.clip(frame, 0, None) / 16).astype(np.uint16) * 16
+    fits.PrimaryHDU(counts, header=header).writeto(path / name)
+    return path / name
+
+
+def test_row_carries_the_header_subset(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["object"] == "Achernar"
+    assert row["pierside"] == "WEST"
+    assert row["exptime"] == pytest.approx(0.001)
+    assert row["gain"] == 350
+    assert row["date_obs"] == "2025-10-09T19:19:29.279"
+    assert row["airmass"] == pytest.approx(1.4)
+
+
+def test_row_records_provenance_relative_to_the_root(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["filename"] == "Achernar/Light/Achernar_Light_001.fits"
+    assert row["target"] == "Achernar"
+
+
+def test_row_reports_separation_in_pixels_and_arcsec(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["n_stars"] == 2
+    assert row["sep_pix"] == pytest.approx(50.0, abs=0.5)
+    assert row["sep_arcsec"] == pytest.approx(50.0 * 0.74268, abs=0.5)
+    assert row["sep_pa"] == pytest.approx(0.0, abs=2.0)
+
+
+def test_row_reports_the_flux_ratio_for_later_aperture_identification(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["flux_ratio"] == pytest.approx(2.5, rel=0.05)
+
+
+def test_row_uses_the_ccd_equation_for_a_recognized_camera(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["snr_method"] == "ccd"
+    assert row["bitshift"] == 16
+    assert row["egain"] == pytest.approx(0.421 / 16, abs=1e-4)
+
+
+def test_row_falls_back_for_an_unrecognized_camera(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]),
+                       INSTRUME="Some Other Camera")
+    row = analyze_image(path, root=tmp_path)
+    assert row["snr_method"] == "background"
+    assert np.isnan(row["egain"])
+
+
+def test_a_blank_frame_still_produces_a_row(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([], []))
+    row = analyze_image(path, root=tmp_path)
+    assert row["n_stars"] == 0
+    assert row["status"] == "no stars detected"
+    assert np.isnan(row["sep_pix"])
+    assert np.isnan(row["star0_flux"])
+    # the header and background must survive even when nothing is detected
+    assert row["object"] == "Achernar"
+    # write_frame truncates onto the 16-count grid the driver writes, so the median can only land
+    # on a multiple of 16 and 1550 is not representable. One quantization step is the real tolerance;
+    # the unquantized accuracy is pinned to 0.5 counts by the measure_background tests above.
+    assert row["bkg_median"] == pytest.approx(1550.0, abs=16.0)
+
+
+def test_a_single_star_frame_produces_a_row_with_no_separation(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150)], [1.0e5]))
+    row = analyze_image(path, root=tmp_path)
+    assert row["n_stars"] == 1
+    assert row["status"] == "1 star detected"
+    assert np.isfinite(row["star0_flux"])
+    assert np.isnan(row["star1_flux"])
+    assert np.isnan(row["sep_pix"])
+
+
+def test_an_unreadable_file_produces_a_row_rather_than_raising(tmp_path):
+    bad = tmp_path / "Achernar" / "Light"
+    bad.mkdir(parents=True, exist_ok=True)
+    path = bad / "broken.fits"
+    path.write_text("this is not a fits file")
+    row = analyze_image(path, root=tmp_path)
+    assert row["n_stars"] == 0
+    assert row["status"].startswith("read error")
+
+
+def test_every_row_has_identical_keys_whatever_the_outcome(tmp_path):
+    # a table is built from these rows, so the schema must not depend on the detections
+    good = analyze_image(write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]),
+                                     name="good.fits"), root=tmp_path)
+    blank = analyze_image(write_frame(tmp_path, make_test_frame([], []), name="blank.fits"), root=tmp_path)
+    assert set(good) == set(blank)
