@@ -7,7 +7,10 @@ table, for batch use over the archive and daily use on the previous night.
 """
 
 import argparse
+import multiprocessing
+import os
 import warnings
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -412,13 +415,23 @@ def write_cached_row(cache_dir, row):
     return path
 
 
-def read_cached_rows(cache_dir):
-    """Stack every cached row into one table, or return None if the cache holds nothing usable."""
+def read_cached_rows(cache_dir, names=None):
+    """
+    Stack cached rows into one table, or return None if the cache holds nothing usable.
+
+    Reading one row costs a few ms, so collecting a cache grown to the size of the archive takes
+    tens of minutes. Pass `names` to read only the frames a run touched; leave it None to rebuild
+    from everything, which is worth doing once to seed a table and rarely after that.
+    """
     cache_dir = Path(cache_dir)
     if not cache_dir.is_dir():
         return None
+    if names is None:
+        paths = sorted(cache_dir.glob("*.ecsv"))
+    else:
+        paths = [path for path in (cache_path(cache_dir, name) for name in names) if path.exists()]
     tables = []
-    for path in sorted(cache_dir.glob("*.ecsv")):
+    for path in paths:
         try:
             tables.append(Table.read(path, format="ascii.ecsv"))
         except Exception as error:
@@ -426,6 +439,44 @@ def read_cached_rows(cache_dir):
     if not tables:
         return None
     return _describe(vstack(tables, metadata_conflicts="silent"))
+
+
+def measure_and_cache(job):
+    """
+    Measure one frame and cache its row, returning the row.
+
+    Takes a single tuple and lives at module scope so it can be handed to a worker process. The
+    caching happens in the worker, which keeps the ECSV writes off the parent's critical path.
+    """
+    path, root, cache_dir = job
+    row = analyze_image(path, root=root)
+    write_cached_row(cache_dir, row)
+    return row
+
+
+#: frames submitted to the pool at a time, to bound the memory held by pending work
+BATCH_SIZE = 500
+
+
+def measure_frames(jobs, workers=1):
+    """Yield a row per job, in the order the jobs were given, using `workers` processes."""
+    if workers <= 1:
+        for job in jobs:
+            yield measure_and_cache(job)
+        return
+
+    # one BLAS thread per worker. Left alone, each worker spawns its own thread pool and they
+    # fight over the same cores; the arrays here are too small for the threading to pay anyway.
+    for variable in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ.setdefault(variable, "1")
+
+    # spawn rather than fork, so the workers import numpy fresh and honor the settings above; a
+    # forked child would inherit this process's already-initialized, already-threaded copy
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
+        for start in range(0, len(jobs), BATCH_SIZE):
+            batch = jobs[start:start + BATCH_SIZE]
+            yield from pool.map(measure_and_cache, batch, chunksize=max(1, len(batch) // (workers * 4)))
 
 
 def _progress(index, total, name, row=None):
@@ -451,7 +502,10 @@ def main(argv=None):
     parser.add_argument("--format", choices=["ecsv", "csv"], default="ecsv", help="output format")
     parser.add_argument("--cache-dir", help="per-frame result cache; defaults to <output>.parts")
     parser.add_argument("--reprocess", action="store_true", help="reanalyze frames that are already cached")
+    parser.add_argument("--collect-cache", action="store_true",
+                        help="build the output from every cache entry, not just the frames in this run")
     parser.add_argument("--append", action="store_true", help="merge into an existing table, replacing matching rows")
+    parser.add_argument("-j", "--jobs", type=int, default=1, help="worker processes to measure frames with")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress per-frame progress")
     args = parser.parse_args(argv)
 
@@ -466,19 +520,22 @@ def main(argv=None):
         return 1
 
     total = len(paths)
-    for index, path in enumerate(paths, start=1):
-        name = relative_name(path, args.root)
+    names = [relative_name(path, args.root) for path in paths]
+
+    pending = []
+    for index, (path, name) in enumerate(zip(paths, names), start=1):
         if not args.reprocess and cache_path(cache_dir, name).exists():
             if not args.quiet:
                 _progress(index, total, name)
             continue
-        row = analyze_image(path, root=args.root)
-        write_cached_row(cache_dir, row)
+        pending.append((index, name, (path, args.root, cache_dir)))
+
+    for (index, name, _), row in zip(pending, measure_frames([job for _, _, job in pending], workers=args.jobs)):
         if not args.quiet:
             _progress(index, total, name, row)
 
     # every row now lives on disk; the output is just the cache collected and put in time order
-    table = read_cached_rows(cache_dir)
+    table = read_cached_rows(cache_dir, names=None if args.collect_cache else names)
     if table is None:
         print(f"no results cached in {cache_dir}")
         return 1

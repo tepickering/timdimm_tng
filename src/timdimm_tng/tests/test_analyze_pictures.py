@@ -6,7 +6,7 @@ from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 from astropy.table import Table
 
-from timdimm_tng.analyze_pictures import (analyze_image, build_table, cache_path, find_images, last_night, main,
+from timdimm_tng.analyze_pictures import (_empty_row, analyze_image, build_table, cache_path, find_images, last_night, main,
                                           measure_background, measure_stars, merge_tables, night_of, read_cached_rows,
                                           sort_by_time, write_cached_row)
 
@@ -491,6 +491,73 @@ def test_cli_quiet_suppresses_progress(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "[1/1]" not in output
     assert "wrote 1 rows" in output
+
+
+def test_read_cached_rows_can_be_limited_to_named_frames(tmp_path):
+    row = _empty_row()
+    for name in ("a.fits", "b.fits"):
+        row["filename"] = name
+        write_cached_row(tmp_path, row)
+    assert list(read_cached_rows(tmp_path, names=["a.fits"])["filename"]) == ["a.fits"]
+
+
+def test_read_cached_rows_ignores_names_that_are_not_cached(tmp_path):
+    row = _empty_row()
+    row["filename"] = "a.fits"
+    write_cached_row(tmp_path, row)
+    assert list(read_cached_rows(tmp_path, names=["a.fits", "missing.fits"])["filename"]) == ["a.fits"]
+
+
+def test_cli_collects_only_the_frames_in_this_run(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    cache = tmp_path / "cache"
+    # a row left behind by an earlier run, for a frame that is no longer on disk
+    stale = _empty_row()
+    stale["filename"] = "Achernar/Light/deleted.fits"
+    write_cached_row(cache, stale)
+
+    out = tmp_path / "out.ecsv"
+    main(["--root", str(tmp_path), "--all", "-o", str(out), "--cache-dir", str(cache)])
+    assert list(Table.read(out)["filename"]) == ["Achernar/Light/a.fits"]
+
+
+def test_cli_collect_cache_rebuilds_from_the_whole_cache(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    cache = tmp_path / "cache"
+    stale = _empty_row()
+    stale["filename"] = "Achernar/Light/deleted.fits"
+    write_cached_row(cache, stale)
+
+    out = tmp_path / "out.ecsv"
+    main(["--root", str(tmp_path), "--all", "-o", str(out), "--cache-dir", str(cache), "--collect-cache"])
+    assert len(Table.read(out)) == 2
+
+
+def test_cli_jobs_measures_every_frame(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    for index, name in enumerate(("a.fits", "b.fits", "c.fits")):
+        write_frame(tmp_path, frame, name=name, **{"DATE-OBS": f"2025-10-09T19:1{index}:00.000"})
+    out = tmp_path / "out.ecsv"
+    main(["--root", str(tmp_path), "--all", "-o", str(out), "--jobs", "2"])
+    table = Table.read(out)
+    assert len(table) == 3
+    assert set(table["status"]) == {"ok"}
+
+
+def test_cli_jobs_still_skips_cached_frames(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    out = tmp_path / "out.ecsv"
+    cache = tmp_path / "cache"
+    args = ["--root", str(tmp_path), "--all", "-o", str(out), "--cache-dir", str(cache), "--jobs", "2"]
+    main(args)
+
+    cached = list(cache.glob("*.ecsv"))[0]
+    table = Table.read(cached)
+    table.replace_column("status", ["stale"])
+    table.write(cached, overwrite=True)
+
+    main(args)
+    assert Table.read(out)["status"][0] == "stale"
 
 
 ARCHIVE = Path.home() / "SAAO" / "timdimm_data" / "Pictures"

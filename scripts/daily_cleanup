@@ -22,8 +22,10 @@ if [ ! -s "$FRAMES" ]; then
 fi
 
 # the cache holds one row per frame and is kept between runs: it makes an interrupted run
-# resumable, and stops frames that survive a cleanup from being reanalyzed every night
-analyze_pictures --root "$PICTURES" --all -o "$TABLE" --cache-dir "$CACHE" --append
+# resumable, and stops frames that survive a cleanup from being reanalyzed every night. Only the
+# frames measured tonight are read back out of it, so the collect step stays proportional to the
+# night rather than to the whole archive.
+analyze_pictures --root "$PICTURES" --all -o "$TABLE" --cache-dir "$CACHE" --append --jobs 4
 
 # set -e means we only get here if the measurements made it into $TABLE
 xargs -0 rm -f < "$FRAMES"
