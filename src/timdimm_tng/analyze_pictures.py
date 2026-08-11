@@ -208,6 +208,35 @@ def night_of(date_obs, sitelong=None):
     return (local - TimeDelta(12.0 * 3600.0, format="sec")).isot[:10]
 
 
+def last_night(now=None):
+    """Night label for the previous day, for the daily cron run."""
+    current = Time.now() if now is None else Time(now, format="isot", scale="utc")
+    return (current - TimeDelta(1.0, format="jd")).isot[:10]
+
+
+def find_images(root, night=None):
+    """
+    Find frames under <root>/<target>/<imagetype>/, optionally restricted to one night.
+
+    Pictures/ has no per-night directories, so night selection reads DATE-OBS from each header.
+    Only headers are read; pixel data is left on disk.
+    """
+    root = Path(root)
+    paths = sorted(list(root.glob("*/*/*.fits")) + list(root.glob("*/*/*.fits.gz")))
+    if night is None:
+        return paths
+
+    selected = []
+    for path in paths:
+        try:
+            header = fits.getheader(path)
+        except Exception:
+            continue
+        if night_of(header.get("DATE-OBS"), header.get("SITELONG")) == night:
+            selected.append(path)
+    return selected
+
+
 def _column_name(key):
     """FITS keyword to column name: lower case, dashes to underscores."""
     return key.lower().replace("-", "_")

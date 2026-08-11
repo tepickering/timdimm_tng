@@ -3,7 +3,8 @@ import pytest
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 
-from timdimm_tng.analyze_pictures import analyze_image, measure_background, measure_stars
+from timdimm_tng.analyze_pictures import (analyze_image, find_images, last_night, measure_background,
+                                          measure_stars, night_of)
 
 
 def make_test_frame(positions, fluxes, sigma_x=3.0, sigma_y=3.0, theta=0.0,
@@ -260,3 +261,54 @@ def test_every_row_has_identical_keys_whatever_the_outcome(tmp_path):
                                      name="good.fits"), root=tmp_path)
     blank = analyze_image(write_frame(tmp_path, make_test_frame([], []), name="blank.fits"), root=tmp_path)
     assert set(good) == set(blank)
+
+
+def test_night_label_is_the_same_either_side_of_midnight():
+    # SAAO is ~1.4h ahead of UTC in solar time; both of these are the same observing night
+    evening = night_of("2025-10-09T19:19:29.279", 20.94556)
+    morning = night_of("2025-10-10T01:30:00.000", 20.94556)
+    assert evening == morning == "2025-10-09"
+
+
+def test_night_label_rolls_over_at_local_noon():
+    before_noon = night_of("2025-10-10T09:00:00.000", 20.94556)
+    after_noon = night_of("2025-10-10T11:00:00.000", 20.94556)
+    assert before_noon == "2025-10-09"
+    assert after_noon == "2025-10-10"
+
+
+def test_night_label_is_empty_without_a_timestamp():
+    assert night_of(None) == ""
+
+
+def test_last_night_is_the_day_before_today():
+    assert last_night(now="2025-10-10T09:00:00") == "2025-10-09"
+
+
+def test_find_images_walks_target_and_image_type_directories(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="Achernar_Light_001.fits")
+    write_frame(tmp_path, frame, name="Achernar_Light_002.fits")
+    found = find_images(tmp_path)
+    assert [p.name for p in found] == ["Achernar_Light_001.fits", "Achernar_Light_002.fits"]
+
+
+def test_find_images_picks_up_compressed_archive_frames(tmp_path):
+    import gzip
+    write_frame(tmp_path, make_test_frame([(120, 150)], [1.0e5]), name="Achernar_Light_001.fits")
+    raw = tmp_path / "Achernar" / "Light" / "Achernar_Light_001.fits"
+    with open(raw, "rb") as handle:
+        data = handle.read()
+    with gzip.open(tmp_path / "Achernar" / "Light" / "Achernar_Light_009.fits.gz", "wb") as handle:
+        handle.write(data)
+    assert len(find_images(tmp_path)) == 2
+
+
+def test_find_images_filters_by_night(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits", **{"DATE-OBS": "2025-10-09T19:19:29.279"})
+    write_frame(tmp_path, frame, name="b.fits", **{"DATE-OBS": "2025-10-10T01:30:00.000"})
+    write_frame(tmp_path, frame, name="c.fits", **{"DATE-OBS": "2025-10-12T20:00:00.000"})
+    # a and b are the same night either side of midnight; c is a different one
+    assert sorted(p.name for p in find_images(tmp_path, night="2025-10-09")) == ["a.fits", "b.fits"]
+    assert [p.name for p in find_images(tmp_path, night="2025-10-12")] == ["c.fits"]
