@@ -52,6 +52,7 @@ sdbus = [
 vid_capture = "timdimm_tng.vid_capture:main"
 timdimm_analyze = "timdimm_tng.analyze_cube:timdimm_analyze"
 hdimm_analyze = "timdimm_tng.analyze_cube:hdimm_analyze"
+analyze_pictures = "timdimm_tng.analyze_pictures:main"
 oxwagon = "timdimm_tng.ox_wagon:main"
 gfz_wx = "timdimm_tng.wx.gfz_weather:main"
 salt_wx = "timdimm_tng.wx.salt_weather_xml:main"

@@ -2,9 +2,10 @@ import numpy as np
 import pytest
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
+from astropy.table import Table
 
-from timdimm_tng.analyze_pictures import (analyze_image, find_images, last_night, measure_background,
-                                          measure_stars, night_of)
+from timdimm_tng.analyze_pictures import (analyze_image, build_table, find_images, last_night, main,
+                                          measure_background, measure_stars, merge_tables, night_of)
 
 
 def make_test_frame(positions, fluxes, sigma_x=3.0, sigma_y=3.0, theta=0.0,
@@ -312,3 +313,73 @@ def test_find_images_filters_by_night(tmp_path):
     # a and b are the same night either side of midnight; c is a different one
     assert sorted(p.name for p in find_images(tmp_path, night="2025-10-09")) == ["a.fits", "b.fits"]
     assert [p.name for p in find_images(tmp_path, night="2025-10-12")] == ["c.fits"]
+
+
+def test_table_carries_units_and_descriptions(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    table = build_table([analyze_image(path, root=tmp_path)])
+    assert table["sep_arcsec"].unit == "arcsec"
+    assert table["star0_fwhm"].unit == "pix"
+    assert "geometric mean" in table["star0_fwhm"].description
+    # the snr description must record that it is background limited without a known egain
+    assert table["star0_snr"].description
+
+
+def test_merge_replaces_rows_for_the_same_file(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    first = build_table([analyze_image(path, root=tmp_path)])
+    second = build_table([analyze_image(path, root=tmp_path)])
+    merged = merge_tables(first, second)
+    assert len(merged) == 1
+
+
+def test_merge_keeps_rows_for_different_files(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    a = build_table([analyze_image(write_frame(tmp_path, frame, name="a.fits"), root=tmp_path)])
+    b = build_table([analyze_image(write_frame(tmp_path, frame, name="b.fits"), root=tmp_path)])
+    assert len(merge_tables(a, b)) == 2
+
+
+def test_cli_writes_an_ecsv_for_every_frame(tmp_path):
+    frame = make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4])
+    write_frame(tmp_path, frame, name="a.fits")
+    write_frame(tmp_path, frame, name="b.fits")
+    out = tmp_path / "out.ecsv"
+    assert main(["--root", str(tmp_path), "--all", "-o", str(out)]) == 0
+    table = Table.read(out)
+    assert len(table) == 2
+    assert set(table["target"]) == {"Achernar"}
+
+
+def test_cli_append_is_idempotent(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    out = tmp_path / "out.ecsv"
+    main(["--root", str(tmp_path), "--all", "-o", str(out)])
+    main(["--root", str(tmp_path), "--all", "-o", str(out), "--append"])
+    assert len(Table.read(out)) == 1
+
+
+def test_cli_can_write_plain_csv(tmp_path):
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    out = tmp_path / "out.csv"
+    assert main(["--root", str(tmp_path), "--all", "-o", str(out), "--format", "csv"]) == 0
+    assert len(Table.read(out, format="ascii.csv")) == 1
+
+
+def test_a_read_error_row_still_builds_and_writes_a_table(tmp_path):
+    # empty header values must be typed, not None, or the column comes out object dtype
+    bad = tmp_path / "Achernar" / "Light"
+    bad.mkdir(parents=True, exist_ok=True)
+    (bad / "broken.fits").write_text("this is not a fits file")
+    write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]), name="a.fits")
+    out = tmp_path / "out.ecsv"
+    assert main(["--root", str(tmp_path), "--all", "-o", str(out)]) == 0
+    table = Table.read(out)
+    assert len(table) == 2
+    assert table["object"].dtype.kind == "U"
+    assert any(status.startswith("read error") for status in table["status"])
+
+
+def test_cli_reports_when_no_images_match(tmp_path, capsys):
+    assert main(["--root", str(tmp_path), "--night", "1999-01-01", "-o", str(tmp_path / "x.ecsv")]) == 1
+    assert "no images" in capsys.readouterr().out.lower()

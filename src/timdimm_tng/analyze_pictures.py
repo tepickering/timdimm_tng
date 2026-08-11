@@ -6,6 +6,7 @@ does photometry and shape measurement on both spots, and writes one row per imag
 table, for batch use over the archive and daily use on the previous night.
 """
 
+import argparse
 import warnings
 from pathlib import Path
 
@@ -13,6 +14,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.modeling import fitting, models
 from astropy.stats import sigma_clipped_stats
+from astropy.table import Table, vstack
 from astropy.time import Time, TimeDelta
 from photutils.aperture import ApertureStats, CircularAnnulus, CircularAperture
 from photutils.detection import DAOStarFinder
@@ -55,6 +57,32 @@ STAR_KEYS = [
 HEADER_STRING_KEYS = {"PIERSIDE", "DATE-OBS", "OBJECT"}
 
 NAN = float("nan")
+
+#: units for the output columns, by suffix or exact name
+COLUMN_UNITS = {
+    "sep_pix": "pix", "sep_arcsec": "arcsec", "sep_pa": "deg",
+    "x": "pix", "y": "pix", "fwhm": "pix", "fwhm_gauss": "pix",
+    "sigma_major": "pix", "sigma_minor": "pix", "pa": "deg", "aper_radius": "pix",
+    "peak": "adu", "flux": "adu", "n_pix": "pix2",
+    "bkg_mean": "adu", "bkg_median": "adu", "bkg_rms": "adu",
+    "exptime": "s", "ccd_temp": "deg_C", "objctaz": "deg", "objctalt": "deg",
+    "ra": "deg", "dec": "deg",
+}
+
+COLUMN_DESCRIPTIONS = {
+    "fwhm": "2.3548 * sqrt(sigma_major * sigma_minor), the geometric mean of the moment axes",
+    "fwhm_gauss": "FWHM from an independent elliptical gaussian fit, as a cross-check on fwhm",
+    "ellip": "1 - sigma_minor/sigma_major from windowed second moments",
+    "pa": "position angle of the major axis, degrees CCW from +x",
+    "concentration": "peak/flux normalized to the diffraction limited value; falls as light spreads out",
+    "snr": "CCD equation when egain is known, otherwise flux / (bkg_rms * sqrt(n_pix))",
+    "sep_pa": "position angle from star0 to star1, degrees CCW from +x",
+    "flux_ratio": "star0_flux / star1_flux; use this to identify which mask aperture is which",
+    "egain": "electrons per stored count; NaN when the camera is not recognized",
+    "bitshift": "power of two the 12-bit samples were left-shifted by before storage",
+    "snr_method": "'ccd' or 'background', recording how snr was computed",
+    "status": "'ok', or why a frame yielded no measurements",
+}
 
 
 def measure_background(data):
@@ -317,3 +345,62 @@ def analyze_image(path, root=None):
         row["status"] = "no stars detected"
 
     return row
+
+
+def _describe(table):
+    """Attach units and descriptions, matching star0_/star1_ prefixed columns by suffix."""
+    for name in table.colnames:
+        suffix = name.split("_", 1)[1] if name.startswith(("star0_", "star1_")) else name
+        if suffix in COLUMN_UNITS:
+            table[name].unit = COLUMN_UNITS[suffix]
+        if suffix in COLUMN_DESCRIPTIONS:
+            table[name].description = COLUMN_DESCRIPTIONS[suffix]
+    return table
+
+
+def build_table(rows):
+    """Build an annotated table from analyze_image() rows."""
+    return _describe(Table(rows=rows))
+
+
+def merge_tables(existing, new):
+    """Stack two tables and keep the last row for each filename, so re-runs are idempotent."""
+    merged = vstack([existing, new], metadata_conflicts="silent")
+    merged["_order"] = range(len(merged))
+    merged.sort(["filename", "_order"])
+    keep = [i for i, name in enumerate(merged["filename"])
+            if i + 1 == len(merged) or merged["filename"][i + 1] != name]
+    merged = merged[keep]
+    merged.remove_column("_order")
+    merged.sort("filename")
+    return merged
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Analyze the single exposures taken before each seeing measurement")
+    parser.add_argument("--root", default=str(Path.home() / "Pictures"), help="directory holding <target>/<imagetype>/")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--all", action="store_true", help="process every frame under --root")
+    selection.add_argument("--night", help="process one night, as YYYY-MM-DD")
+    selection.add_argument("--last-night", action="store_true", help="process the previous night")
+    parser.add_argument("-o", "--output", required=True, help="output table")
+    parser.add_argument("--format", choices=["ecsv", "csv"], default="ecsv", help="output format")
+    parser.add_argument("--append", action="store_true", help="merge into an existing table, replacing matching rows")
+    args = parser.parse_args(argv)
+
+    night = last_night() if args.last_night else args.night
+    paths = find_images(args.root, night=night)
+    if not paths:
+        print(f"no images found under {args.root}" + (f" for night {night}" if night else ""))
+        return 1
+
+    table = build_table([analyze_image(path, root=args.root) for path in paths])
+
+    output = Path(args.output)
+    if args.append and output.exists():
+        existing = Table.read(output, format="ascii.ecsv" if args.format == "ecsv" else "ascii.csv")
+        table = _describe(merge_tables(existing, table))
+
+    table.write(output, format="ascii.ecsv" if args.format == "ecsv" else "ascii.csv", overwrite=True)
+    print(f"wrote {len(table)} rows to {output}")
+    return 0
