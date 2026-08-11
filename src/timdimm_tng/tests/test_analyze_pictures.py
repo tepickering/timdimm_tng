@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 from astropy.io import fits
@@ -383,3 +385,37 @@ def test_a_read_error_row_still_builds_and_writes_a_table(tmp_path):
 def test_cli_reports_when_no_images_match(tmp_path, capsys):
     assert main(["--root", str(tmp_path), "--night", "1999-01-01", "-o", str(tmp_path / "x.ecsv")]) == 1
     assert "no images" in capsys.readouterr().out.lower()
+
+
+ARCHIVE = Path.home() / "SAAO" / "timdimm_data" / "Pictures"
+
+
+@pytest.mark.skipif(not ARCHIVE.exists(), reason="archived example data not present")
+def test_runs_end_to_end_on_the_archived_frames():
+    paths = find_images(ARCHIVE)
+    assert len(paths) == 5
+    rows = [analyze_image(path, root=ARCHIVE) for path in paths]
+    table = build_table(rows)
+
+    assert set(table["target"]) == {"Achernar"}
+    assert set(table["object"]) == {"Achernar"}
+    assert all(status == "ok" for status in table["status"])
+    assert all(table["n_stars"] == 2)
+
+    # the frames are 12-bit left-shifted ASI432MM data at gain 350
+    assert all(table["bitshift"] == 16)
+    assert all(table["snr_method"] == "ccd")
+
+    # background and separation should be stable across the five frames
+    assert np.all(np.abs(table["bkg_median"] - 1552.0) < 50.0)
+    assert np.all(table["bkg_rms"] < 200.0)
+    assert np.all(np.abs(table["sep_pix"] - 50.0) < 10.0)
+
+    # sanity, not accuracy: everything measured must be finite and physical
+    for prefix in ("star0", "star1"):
+        assert np.all(np.isfinite(table[f"{prefix}_flux"]))
+        assert np.all(table[f"{prefix}_flux"] > 0)
+        assert np.all(table[f"{prefix}_snr"] > 5.0)
+        assert np.all(table[f"{prefix}_fwhm"] > 0)
+        assert np.all(table[f"{prefix}_fwhm"] < 60.0)
+        assert np.all((table[f"{prefix}_ellip"] >= 0.0) & (table[f"{prefix}_ellip"] <= 1.0))
