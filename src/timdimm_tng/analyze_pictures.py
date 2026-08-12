@@ -325,7 +325,13 @@ def analyze_image(path, root=None):
 
     for key in HEADER_KEYS:
         value = header.get(key)
-        row[_column_name(key)] = value.strip() if isinstance(value, str) else value
+        if isinstance(value, str):
+            row[_column_name(key)] = value.strip()
+        elif isinstance(value, (int, float, bool)):
+            row[_column_name(key)] = value
+        # a keyword that is absent, or present with no value, keeps the typed empty from
+        # _empty_row. Writing the None that header.get returns would make the column object dtype,
+        # and one such frame is enough to stop the whole archive from stacking.
     row["night"] = night_of(header.get("DATE-OBS"), header.get("SITELONG"))
 
     row.update(measure_background(data))
@@ -415,6 +421,38 @@ def write_cached_row(cache_dir, row):
     return path
 
 
+def _retype(entry):
+    """
+    Force an entry's columns to the schema's types.
+
+    Entries are stacked by the thousand, and vstack refuses to merge a column that is text in one
+    entry and a number in another, so a single odd frame stops the whole archive from collecting.
+    Types drift for real reasons: a keyword missing from one frame's header used to cache a bare
+    None, which reads back as an object column, and a keyword astropy reads as an int in one frame
+    and a float in another. The schema in _empty_row says what each column should be; anything
+    that will not convert was not a usable value to begin with and becomes the typed empty.
+    """
+    empty = _empty_row()
+    for name in entry.colnames:
+        if name not in empty:
+            continue
+        # the schema's own dtype, not just its kind: "f" as a dtype means float32, which would
+        # quietly round every value that passed through here
+        want = np.array(empty[name]).dtype
+        if entry[name].dtype.kind == want.kind:
+            continue
+        try:
+            if want.kind == "U":
+                # str() of a missing value would spell it out as "None" or "--" rather than leave
+                # it empty, so map anything unset to the empty string on the way
+                entry[name] = ["" if value is None or value is np.ma.masked else str(value) for value in entry[name]]
+            else:
+                entry[name] = entry[name].astype(want)
+        except (ValueError, TypeError):
+            entry[name] = [empty[name]] * len(entry)
+    return entry
+
+
 def _stack(tables):
     """Stack tables, skipping the copy vstack would make of a lone one."""
     return tables[0] if len(tables) == 1 else vstack(tables, metadata_conflicts="silent")
@@ -456,7 +494,7 @@ def read_cached_rows(cache_dir, names=None, progress=False):
     chunks, entries = [], []
     for index, path in enumerate(paths, start=1):
         try:
-            entries.append(Table.read(path, format="ascii.ecsv"))
+            entries.append(_retype(Table.read(path, format="ascii.ecsv")))
         except Exception as error:
             print(f"skipping unreadable cache entry {path.name}: {error}")
         if len(entries) >= COLLECT_CHUNK:

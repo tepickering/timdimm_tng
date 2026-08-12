@@ -422,6 +422,49 @@ def test_reading_a_cache_keeps_the_widest_string_in_each_column(tmp_path, monkey
     assert sorted(table["target"]) == ["Alpha Pavonis", "Ari"]
 
 
+def test_a_missing_header_keyword_stays_typed(tmp_path):
+    # header.get() returns None for a keyword that is not there, and a None lands in an
+    # object-dtype column that will not stack against the same column from a frame that had the
+    # keyword. The typed empty from _empty_row has to survive.
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    with fits.open(path, mode="update") as hdul:
+        del hdul[0].header["OBJECT"]
+        del hdul[0].header["AIRMASS"]
+    row = analyze_image(path, root=tmp_path)
+    assert row["object"] == ""
+    assert np.isnan(row["airmass"])
+    table = build_table([row])
+    assert table["object"].dtype.kind == "U"
+    assert table["airmass"].dtype.kind == "f"
+
+
+def test_reading_a_cache_repairs_untyped_entries(tmp_path):
+    # entries written before missing keywords were typed hold a bare None, and collecting has to
+    # cope with them rather than require the whole archive be measured again
+    row = _empty_row()
+    row["filename"], row["object"] = "a.fits", "Achernar"
+    write_cached_row(tmp_path, row)
+    row["filename"], row["object"] = "b.fits", None
+    write_cached_row(tmp_path, row)
+    table = read_cached_rows(tmp_path)
+    assert len(table) == 2
+    assert table["object"].dtype.kind == "U"
+    assert sorted(table["object"]) == ["", "Achernar"]
+
+
+def test_reading_a_cache_retypes_a_column_that_drifted(tmp_path):
+    # a keyword astropy reads as an int in one frame and a float in another, or as text, has to
+    # end up one type in the table rather than stop the collect
+    row = _empty_row()
+    row["filename"], row["exptime"], row["equinox"] = "a.fits", 0.001, 2000
+    write_cached_row(tmp_path, row)
+    row["filename"], row["exptime"], row["equinox"] = "b.fits", "0.002", 2000.0
+    write_cached_row(tmp_path, row)
+    table = read_cached_rows(tmp_path)
+    assert table["exptime"].dtype.kind == "f"
+    assert sorted(table["exptime"]) == [0.001, 0.002]
+
+
 def test_reading_a_cache_stacks_chunks_that_differ_in_emptiness(tmp_path, monkeypatch):
     # an empty string round trips through ECSV as a masked value, so a chunk whose rows are all
     # empty in some column carries no usable dtype for it. Collecting has to stack that against a
