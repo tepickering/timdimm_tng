@@ -422,6 +422,23 @@ def test_reading_a_cache_keeps_the_widest_string_in_each_column(tmp_path, monkey
     assert sorted(table["target"]) == ["Alpha Pavonis", "Ari"]
 
 
+def test_reading_a_cache_stacks_chunks_that_differ_in_emptiness(tmp_path, monkeypatch):
+    # an empty string round trips through ECSV as a masked value, so a chunk whose rows are all
+    # empty in some column carries no usable dtype for it. Collecting has to stack that against a
+    # chunk where the column has values, which is the common case across the archive: most frames
+    # record a filter and an occasional one does not.
+    monkeypatch.setattr("timdimm_tng.analyze_pictures.COLLECT_CHUNK", 1)
+    row = _empty_row()
+    row["filename"], row["target"] = "a.fits", "Achernar"
+    write_cached_row(tmp_path, row)
+    row["filename"], row["target"] = "b.fits", ""
+    write_cached_row(tmp_path, row)
+    table = read_cached_rows(tmp_path)
+    assert len(table) == 2
+    assert sorted(table["filename"]) == ["a.fits", "b.fits"]
+    assert "Achernar" in list(table["target"])
+
+
 def test_reading_an_empty_cache_returns_nothing(tmp_path):
     assert read_cached_rows(tmp_path / "missing") is None
     (tmp_path / "empty").mkdir()

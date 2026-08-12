@@ -415,11 +415,17 @@ def write_cached_row(cache_dir, row):
     return path
 
 
+def _stack(tables):
+    """Stack tables, skipping the copy vstack would make of a lone one."""
+    return tables[0] if len(tables) == 1 else vstack(tables, metadata_conflicts="silent")
+
+
 #: cached rows read between progress lines, so a collect over the whole archive is not silent
 PROGRESS_EVERY = 5000
 
-#: cached rows folded into a table at a time, to bound the memory a collect holds as loose rows
-COLLECT_CHUNK = 5000
+#: entries stacked at a time. Each unstacked entry holds ~53 kB, so this sets the memory a collect
+#: spends on entries waiting to be stacked, independent of how large the cache has grown
+COLLECT_CHUNK = 2000
 
 
 def read_cached_rows(cache_dir, names=None, progress=False):
@@ -430,10 +436,14 @@ def read_cached_rows(cache_dir, names=None, progress=False):
     tens of minutes. Pass `names` to read only the frames a run touched; leave it None to rebuild
     from everything, which is worth doing once to seed a table and rarely after that.
 
-    Each entry becomes a plain dict and its table is thrown away, and the dicts are folded into a
-    table every COLLECT_CHUNK rows. Held as Tables a row costs ~53 kB resident and as a loose dict
-    ~10 kB, against ~0.5 kB once it is packed into columns, so collecting the whole archive in one
-    closing vstack needs ~13 GB and swaps where this needs a few hundred MB.
+    Entries are stacked COLLECT_CHUNK at a time rather than held for one closing vstack. A
+    single-row Table costs ~53 kB resident against ~0.8 kB once it is packed into a stacked table,
+    so collecting the whole archive in one go needs ~13 GB and swaps; chunked it needs a few
+    hundred MB, and the peak no longer grows with the size of the cache.
+
+    The stacking has to go through vstack rather than pulling values out into rows: an empty
+    string round trips through ECSV as a masked value, and a row carrying one cannot say what
+    dtype its column should be.
     """
     cache_dir = Path(cache_dir)
     if not cache_dir.is_dir():
@@ -443,24 +453,22 @@ def read_cached_rows(cache_dir, names=None, progress=False):
     else:
         paths = [path for path in (cache_path(cache_dir, name) for name in names) if path.exists()]
 
-    chunks, rows = [], []
+    chunks, entries = [], []
     for index, path in enumerate(paths, start=1):
         try:
-            entry = Table.read(path, format="ascii.ecsv")
-            rows.append(dict(zip(entry.colnames, entry[0])))
+            entries.append(Table.read(path, format="ascii.ecsv"))
         except Exception as error:
             print(f"skipping unreadable cache entry {path.name}: {error}")
-        if len(rows) >= COLLECT_CHUNK:
-            chunks.append(build_table(rows))
-            rows = []
+        if len(entries) >= COLLECT_CHUNK:
+            chunks.append(_stack(entries))
+            entries = []
         if progress and index % PROGRESS_EVERY == 0:
             print(f"collected {index}/{len(paths)} cached rows")
-    if rows:
-        chunks.append(build_table(rows))
+    if entries:
+        chunks.append(_stack(entries))
     if not chunks:
         return None
-    # vstack widens each string column to the widest value across the chunks
-    return chunks[0] if len(chunks) == 1 else _describe(vstack(chunks, metadata_conflicts="silent"))
+    return _describe(_stack(chunks))
 
 
 def measure_and_cache(job):
