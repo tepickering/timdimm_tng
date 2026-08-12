@@ -363,7 +363,18 @@ def analyze_image(path, root=None):
 
 
 def _describe(table):
-    """Attach units and descriptions, matching star0_/star1_ prefixed columns by suffix."""
+    """
+    Attach units and descriptions, matching star0_/star1_ prefixed columns by suffix, and put the
+    float columns in float32.
+
+    Nothing measured here justifies float64: a float32 carries ~7 significant digits, against
+    fluxes good to three and positions to a hundredth of a pixel. It halves the table and the
+    cache. Every path that produces a table for writing goes through here, so entries cached as
+    float64 before this are narrowed when they are collected.
+    """
+    for name in table.colnames:
+        if table[name].dtype == np.float64:
+            table[name] = table[name].astype(np.float32)
     for name in table.colnames:
         suffix = name.split("_", 1)[1] if name.startswith(("star0_", "star1_")) else name
         if suffix in COLUMN_UNITS:
@@ -436,8 +447,9 @@ def _retype(entry):
     for name in entry.colnames:
         if name not in empty:
             continue
-        # the schema's own dtype, not just its kind: "f" as a dtype means float32, which would
-        # quietly round every value that passed through here
+        # only the kind has to match: string widths are per entry and vstack reconciles them, and
+        # narrowing float64 entries to float32 here rather than once at the end costs ~2 ms an
+        # entry, which over the archive is minutes to save the few MB the chunks hold
         want = np.array(empty[name]).dtype
         if entry[name].dtype.kind == want.kind:
             continue

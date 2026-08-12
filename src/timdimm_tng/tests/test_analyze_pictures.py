@@ -452,6 +452,26 @@ def test_reading_a_cache_repairs_untyped_entries(tmp_path):
     assert sorted(table["object"]) == ["", "Achernar"]
 
 
+def test_float_columns_are_float32(tmp_path):
+    path = write_frame(tmp_path, make_test_frame([(120, 150), (170, 150)], [1.0e5, 4.0e4]))
+    table = build_table([analyze_image(path, root=tmp_path)])
+    floats = [name for name in table.colnames if table[name].dtype.kind == "f"]
+    assert floats, "expected some float columns"
+    assert all(table[name].dtype == np.float32 for name in floats)
+    assert table["n_stars"].dtype.kind == "i"
+
+
+def test_reading_a_cache_gives_float32_from_older_entries(tmp_path):
+    # entries cached as float64 before the change still collect into a float32 table
+    row = _empty_row()
+    row["filename"], row["exptime"] = "a.fits", 0.001
+    entry = Table(rows=[row])
+    entry["exptime"] = entry["exptime"].astype(np.float64)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    entry.write(cache_path(tmp_path, "a.fits"), format="ascii.ecsv", overwrite=True)
+    assert read_cached_rows(tmp_path)["exptime"].dtype == np.float32
+
+
 def test_reading_a_cache_retypes_a_column_that_drifted(tmp_path):
     # a keyword astropy reads as an int in one frame and a float in another, or as text, has to
     # end up one type in the table rather than stop the collect
