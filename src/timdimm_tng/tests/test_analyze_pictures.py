@@ -407,6 +407,21 @@ def test_a_cached_row_round_trips(tmp_path):
     assert table["star0_flux"][0] == pytest.approx(row["star0_flux"])
 
 
+def test_reading_a_cache_keeps_the_widest_string_in_each_column(tmp_path, monkeypatch):
+    # rows are cached one per file, so each entry's string columns are only as wide as that row,
+    # and a collect folds them into a table a chunk at a time. Sizing the columns to the widest
+    # value has to survive both, so put the two rows in separate chunks.
+    monkeypatch.setattr("timdimm_tng.analyze_pictures.COLLECT_CHUNK", 1)
+    row = _empty_row()
+    for name, target in (("a.fits", "Ari"), ("Alpha_Pavonis/Light/a_very_long_frame_name.fits", "Alpha Pavonis")):
+        row["filename"] = name
+        row["target"] = target
+        write_cached_row(tmp_path, row)
+    table = read_cached_rows(tmp_path)
+    assert sorted(table["filename"]) == ["Alpha_Pavonis/Light/a_very_long_frame_name.fits", "a.fits"]
+    assert sorted(table["target"]) == ["Alpha Pavonis", "Ari"]
+
+
 def test_reading_an_empty_cache_returns_nothing(tmp_path):
     assert read_cached_rows(tmp_path / "missing") is None
     (tmp_path / "empty").mkdir()
