@@ -6,9 +6,9 @@ from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 from astropy.table import Table
 
-from timdimm_tng.analyze_pictures import (_empty_row, analyze_image, build_table, cache_path, find_images, last_night, main,
-                                          measure_background, measure_stars, merge_tables, night_of, read_cached_rows,
-                                          sort_by_time, write_cached_row)
+from timdimm_tng.analyze_pictures import (MIN_APER_RADIUS, _empty_row, analyze_image, build_table, cache_path, find_images,
+                                          last_night, main, measure_background, measure_stars, merge_tables, night_of,
+                                          read_cached_rows, sort_by_time, write_cached_row)
 
 
 def make_test_frame(positions, fluxes, sigma_x=3.0, sigma_y=3.0, theta=0.0,
@@ -55,6 +55,33 @@ def measure_frame(**kwargs):
     return measure_stars(frame, bkg["bkg_rms"])
 
 
+def test_a_faint_spot_still_gets_a_size():
+    # the aperture iteration used to start at 3*DETECTION_FWHM = 15 px. Out there a faint spot is
+    # mostly sky, the second moments go negative, and semimajor_axis comes back NaN — which both
+    # aborted the iteration on its first pass and left the NaN in the result. A spot detected well
+    # above the noise has to come back with a size.
+    stars = measure_frame(positions=[(120, 150), (170, 150)], fluxes=[8.0e3, 6.0e3], bkg=160.0,
+                          rms=24.5, sigma_x=2.0, sigma_y=2.2)
+    assert len(stars) == 2
+    for star in stars:
+        assert np.isfinite(star["fwhm"]), f"fwhm is NaN at aperture radius {star['aper_radius']}"
+        # 2.355 * sqrt(2.0 * 2.2) ~ 4.94 px for the gaussian put in
+        assert star["fwhm"] == pytest.approx(4.94, rel=0.15)
+
+
+def test_the_aperture_converges_on_the_spot_size():
+    # the radius iterates onto 3*sigma_major, so a converged aperture reproduces the size of the
+    # gaussian that was put in. Under-converging shows up here as a systematically small FWHM.
+    for sigma in (1.8, 2.5, 3.5):
+        stars = measure_frame(positions=[(120, 150), (200, 150)], fluxes=[2.0e5, 1.5e5],
+                              sigma_x=sigma, sigma_y=sigma)
+        expected = 2.3548 * sigma
+        for star in stars:
+            assert star["fwhm"] == pytest.approx(expected, rel=0.1), f"sigma={sigma}"
+            assert star["aper_radius"] == pytest.approx(3.0 * sigma, rel=0.25) or \
+                star["aper_radius"] == pytest.approx(MIN_APER_RADIUS), f"sigma={sigma}"
+
+
 def test_finds_both_spots_and_sorts_them_by_x():
     stars = measure_frame(positions=[(170, 150), (120, 150)], fluxes=[4.0e4, 1.0e5])
     assert len(stars) == 2
@@ -83,9 +110,15 @@ def test_a_round_spot_has_near_zero_ellipticity():
 
 
 def test_a_smeared_spot_reports_its_elongation_and_angle():
-    # sigma 6x2 at 30 degrees: true ellipticity 1 - 2/6 = 0.667
-    stars = measure_frame(positions=[(120, 150), (170, 150)], fluxes=[1.0e5, 4.0e4],
-                          sigma_x=6.0, sigma_y=2.0, theta=30.0)
+    # sigma 6x2 at 30 degrees: true ellipticity 1 - 2/6 = 0.667.
+    #
+    # The spots are put 120 px apart rather than the 50 px the other tests use. A spot this
+    # smeared converges onto an r=18 aperture, whose background annulus runs from 27 to 45 px; at
+    # 50 px separation that annulus lies on the neighbour, oversubtracts, and shrinks the measured
+    # minor axis to 1.5. Real frames smear nowhere near this much, so this is the synthetic frame
+    # being cramped rather than the measurement being wrong.
+    stars = measure_frame(positions=[(120, 150), (240, 150)], fluxes=[1.0e5, 4.0e4],
+                          sigma_x=6.0, sigma_y=2.0, theta=30.0, shape=(300, 360))
     assert stars[0]["ellip"] == pytest.approx(0.667, abs=0.08)
     assert stars[0]["pa"] == pytest.approx(30.0, abs=3.0)
     assert stars[0]["sigma_major"] == pytest.approx(6.0, rel=0.10)
@@ -661,29 +694,39 @@ ARCHIVE = Path.home() / "SAAO" / "timdimm_data" / "Pictures"
 @pytest.mark.skipif(not ARCHIVE.exists(), reason="archived example data not present")
 def test_runs_end_to_end_on_the_archived_frames():
     paths = find_images(ARCHIVE)
-    assert len(paths) == 5
+    assert len(paths) >= 5
     rows = [analyze_image(path, root=ARCHIVE) for path in paths]
     table = build_table(rows)
 
     assert set(table["target"]) == {"Achernar"}
     assert set(table["object"]) == {"Achernar"}
-    assert all(status == "ok" for status in table["status"])
-    assert all(table["n_stars"] == 2)
+    # the corpus deliberately includes frames where only one spot rises above the threshold
+    assert set(table["status"]) <= {"ok", "1 star detected"}
+    assert set(table["n_stars"].tolist()) <= {1, 2}
 
     # the frames are 12-bit left-shifted ASI432MM data at gain 350
     assert all(table["bitshift"] == 16)
     assert all(table["snr_method"] == "ccd")
 
-    # background and separation should be stable across the five frames
-    assert np.all(np.abs(table["bkg_median"] - 1552.0) < 50.0)
+    # the background level follows the gain the frame was taken at, so it is stable within a gain
+    # setting rather than across the corpus: gain 350 sits near 1552 adu and gain 200 near 160
+    assert np.all(table["bkg_median"] > 0.0)
     assert np.all(table["bkg_rms"] < 200.0)
-    assert np.all(np.abs(table["sep_pix"] - 50.0) < 10.0)
+    for gain in set(table["gain"].tolist()):
+        level = table["bkg_median"][table["gain"] == gain]
+        assert np.ptp(level) < 50.0, f"background wanders at gain {gain}"
+    two = table[table["n_stars"] == 2]
+    assert np.all(np.abs(two["sep_pix"] - 50.0) < 10.0)
 
-    # sanity, not accuracy: everything measured must be finite and physical
-    for prefix in ("star0", "star1"):
-        assert np.all(np.isfinite(table[f"{prefix}_flux"]))
-        assert np.all(table[f"{prefix}_flux"] > 0)
-        assert np.all(table[f"{prefix}_snr"] > 5.0)
-        assert np.all(table[f"{prefix}_fwhm"] > 0)
-        assert np.all(table[f"{prefix}_fwhm"] < 60.0)
-        assert np.all((table[f"{prefix}_ellip"] >= 0.0) & (table[f"{prefix}_ellip"] <= 1.0))
+    # sanity, not accuracy: every spot that was detected must be finite and physical. The faint
+    # ones are the point of this corpus — their sizes used to come back NaN while flux and snr
+    # looked fine, so an unmeasured spot has to fail here rather than pass as an empty column
+    for prefix, measured in (("star0", table), ("star1", two)):
+        assert len(measured) > 0
+        assert np.all(np.isfinite(measured[f"{prefix}_flux"]))
+        assert np.all(measured[f"{prefix}_flux"] > 0)
+        assert np.all(measured[f"{prefix}_snr"] > 5.0)
+        assert np.all(np.isfinite(measured[f"{prefix}_fwhm"]))
+        assert np.all(measured[f"{prefix}_fwhm"] > 0)
+        assert np.all(measured[f"{prefix}_fwhm"] < 60.0)
+        assert np.all((measured[f"{prefix}_ellip"] >= 0.0) & (measured[f"{prefix}_ellip"] <= 1.0))

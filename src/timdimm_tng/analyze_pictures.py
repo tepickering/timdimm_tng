@@ -38,6 +38,13 @@ DEFAULT_WAVELENGTH = 0.64
 MIN_APER_RADIUS = 6.0
 MAX_APER_RADIUS = 40.0
 
+#: the aperture radius is converged onto 3*sigma_major. Ascending steps shrink as they approach
+#: the fixed point, so a loose tolerance stops short of it: at 0.5 px the radius settled a full
+#: pixel below where it belonged and the FWHM came out ~5% small. At 0.1 px the answer no longer
+#: depends on which side the iteration starts from, which is the test that it has converged.
+APER_ITER_TOL = 0.1
+APER_ITER_MAX = 12
+
 #: FWHM in pixels handed to DAOStarFinder for detection only
 DETECTION_FWHM = 5.0
 
@@ -169,19 +176,30 @@ def measure_stars(data, bkg_rms, egain=float("nan"), pixel_scale=DEFAULT_PIXEL_S
     stars = []
     for source in sources:
         position = (float(source["x_centroid"]), float(source["y_centroid"]))
-        radius = 3.0 * DETECTION_FWHM
-        stats = None
         # iterate the radius onto the semi-major axis: a fixed aperture truncates a smeared spot
-        # along its long axis and biases the ellipticity low, which is exactly the signal we want
-        for _ in range(4):
-            stats = _aperture_stats(data, position, radius)
+        # along its long axis and biases the ellipticity low, which is exactly the signal we want.
+        #
+        # Start small and grow. Beyond a few times the spot's own width the aperture is mostly
+        # sky, and on a faint spot the second moments of what is left go negative and the axes
+        # come back NaN. That radius is smaller for fainter spots, so there is no safe fixed
+        # starting point above the answer: 3*DETECTION_FWHM sat past the limit for the faintest
+        # ~17% of spots, which broke the loop on its first pass and left the NaN in the result.
+        # From below, every step is taken from a radius that measured successfully.
+        radius = MIN_APER_RADIUS
+        stats = _aperture_stats(data, position, radius)
+        for _ in range(APER_ITER_MAX):
             semimajor = float(np.atleast_1d(stats.semimajor_axis.value)[0])
             if not np.isfinite(semimajor) or semimajor <= 0:
                 break
             new_radius = float(np.clip(3.0 * semimajor, MIN_APER_RADIUS, MAX_APER_RADIUS))
-            if abs(new_radius - radius) < 0.5:
+            if abs(new_radius - radius) < APER_ITER_TOL:
                 break
-            radius = new_radius
+            candidate = _aperture_stats(data, position, new_radius)
+            grown = float(np.atleast_1d(candidate.semimajor_axis.value)[0])
+            if not np.isfinite(grown) or grown <= 0:
+                # the larger aperture is past the spot's limit; keep the size that measured
+                break
+            radius, stats = new_radius, candidate
 
         semimajor = float(np.atleast_1d(stats.semimajor_axis.value)[0])
         semiminor = float(np.atleast_1d(stats.semiminor_axis.value)[0])
