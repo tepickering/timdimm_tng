@@ -226,11 +226,14 @@ the slope alone to be worth much. Group by separation before comparing anything 
 Aperture radius is not driving any of this: on the dates with four or more cubes, r=11 and r=20
 agree to within 0.023. The larger disagreements are all on single-cube dates.
 
-**Thirteen good cubes are undated.** They pass every quality cut but sit at paths like `bad3.ser.gz`
-and `archive/canopus4.ser.gz` with no date anywhere in them, and `prism_throughput` takes the date
-from the path because SER headers cannot be trusted for it. Their values (0.73 to 0.81) are
-consistent with the 2024 plateau but they cannot be placed on the curve. File modification times on
-`auriga` and `vulpecula` would probably recover them.
+**Thirteen good cubes came out undated, and should not have.** They pass every quality cut but sit
+at paths like `bad3.ser.gz` and `archive/canopus4.ser.gz` with no date in them, and the survey took
+its dates from the path. That was a defect, since fixed: the SER `dateobs` field is written with a
+broken epoch — year 123 for a 2023 cube — but `dateobs_utc` and the per-frame timestamps are
+correct, and the old code could never reach its header fallback anyway. Over 49 cubes the timestamps
+agree with the path 47 times; one header is unreadable, and one cube is named in SAST against a UTC
+header. Their values (0.73 to 0.81) are consistent with the 2024 plateau, and re-running the survey
+on `auriga` and `vulpecula` will now place them on the curve.
 
 The pooled, deduplicated survey is kept at `~/SAAO/timdimm_data/throughput_pooled.ecsv`, one row per
 distinct cube with the machine it came from. The per-machine TSVs it was built from are beside it.
