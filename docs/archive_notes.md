@@ -166,8 +166,8 @@ different files that happen to share the name `seeing.ser.gz`, which is why cube
 on the measurement, not on the filename.
 
 After cutting cubes with fewer than 150 usable frames, no real two-spot separation, or a
-scintillation index above 5, 141 remain, all of them dated. Full-frame cubes are then dropped as
-well — see below — leaving 133 cubes over 19 dates:
+scintillation index above 5, 142 remain, all of them dated. Full-frame cubes are then dropped as
+well — see below — leaving 134 cubes over 20 dates:
 
 | Date | Cubes | Throughput | Spread | Separation | Rate |
 |---|---|---|---|---|---|
@@ -179,6 +179,7 @@ well — see below — leaving 133 cubes over 19 dates:
 | 2024-02-20 | 3 | 0.745 | 0.009 | 63-64 px | 299 Hz |
 | 2024-02-23 | 2 | 0.789 | 0.014 | 63-64 px | 299 Hz |
 | 2024-02-24 | 1 | 0.790 | - | 57 px | 299 Hz |
+| 2024-03-25 | 1 | 0.733 | - | 61 px | - |
 | 2024-04-11 | 5 | 0.733 | 0.019 | 45-49 px | 299 Hz |
 | 2024-04-12 | 1 | 0.694 | - | 52 px | 299 Hz |
 | 2024-04-13 | 1 | 0.726 | - | 53 px | 299 Hz |
@@ -204,17 +205,19 @@ datasets and irrelevant to epoch comparisons, but wrong if whole observing night
 points after commissioning the earlier fit gave -0.114 per year and predicted 0.524 for August 2026
 against a measured 0.685, which was recorded here as unexplained over-extrapolation. The denser
 series shows why. The throughput falls at **-0.304 per year over the first six months** and then at
-**-0.058 per year** over the following year. Fitting all nineteen dates with an exponential settling
-onto a floor, weighted by the number of cubes per date, gives floor **0.691 ± 0.051**, amplitude
-0.201, time constant **7.9 ± 3.7 months**, rms residual 0.024. That form predicts **0.693** for
+**-0.056 per year** over the following year. Fitting all twenty dates with an exponential settling
+onto a floor, weighted by the number of cubes per date, gives floor **0.691 ± 0.050**, amplitude
+0.202, time constant **7.9 ± 3.6 months**, rms residual 0.024. That form predicts **0.692** for
 August 2026 against a measured 0.685, where a single straight line through the same data predicts
-0.464 and fits worse (rms 0.032).
+0.461 and fits worse (rms 0.032).
 
 So the shape is a fast settling in the first months after installation onto a floor near 0.69, plus
 the slow residual drift of a few points a year that the single exposures measure independently as
 -0.083 per year. The -0.114 per year quoted before was an average over a transient and a plateau and
-describes neither. The time constant is the least certain part — 7.9 ± 3.7 months, and it moved from
+describes neither. The time constant is the least certain part — 7.9 ± 3.6 months, and it moved from
 4 to 8 months when five more dates arrived, because only the 2023-06 to 2023-12 gap constrains it.
+Everything after that has settled: a further date added later moved the floor and the time constant
+by less than the last digit quoted.
 
 Three limits remain on how far this can be pushed:
 
@@ -225,9 +228,12 @@ retracts the 2025-03-11 point (0.704) used in the earlier version of this table 
 cube, and its agreement with the trend was coincidence.
 
 **The two datasets are still not on a common scale.** The SER series and the single exposures
-cannot be merged into one fit, only compared as trends. With 2025-03-11 withdrawn there is now no
-SER cube contemporaneous with the single-exposure archive at all, so the size of the offset between
-methods is no longer measured. Closing that gap needs a deliberate SER capture at the present epoch.
+cannot be merged into one fit, only compared as trends. With 2025-03-11 withdrawn there is no SER
+cube contemporaneous with the single-exposure archive, so the size of the offset between methods is
+not measured. The one candidate — `indi_2025-08-17@19-30-23` on `vulpecula`, the only archived cube
+from the overlap period — is a full-frame setup capture that was cut off after 16 frames, so it
+fails on all three counts. Closing this gap needs a deliberate ROI capture at the present epoch; it
+is the single most useful cube anyone could take for these notes.
 
 **The optics were changing during commissioning.** Spot separation runs 24 to 66 px across the
 series, so the mask or the focal length moved several times. Restricting to the single most
@@ -244,6 +250,13 @@ in the tool, since fixed — the SER `dateobs` field is written with a broken ep
 2023 cube, but `dateobs_utc` and the per-frame timestamps are correct. The re-run above dates every
 cube from its own timestamps, and the recovered ones added five dates through February to June 2024,
 the stretch that most constrains the shape of the curve.
+
+Two cubes also failed outright on that pass, on a header promising more frames than the file holds —
+a capture interrupted part way through. The reader now keeps the whole frames that survive, which
+recovered `last_good_seeing.ser.gz` as the 2024-03-25 point above: 2095 frames, 419 of them measured,
+and no timestamp trailer, since that sits after the image data and is lost with it. Such cubes are
+reported as `ok, truncated` and are worth including — their frames are ordinary, they just cover
+less of the night than a whole cube would.
 
 The pooled, deduplicated survey is kept at `~/SAAO/timdimm_data/throughput_pooled.ecsv`, one row per
 distinct cube with the machine it came from. The per-machine TSVs it was built from are beside it.
