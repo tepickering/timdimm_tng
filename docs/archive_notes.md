@@ -133,13 +133,30 @@ The two spots differ in two distinct ways, and the mount repair separates them c
 | `peak` | 4,800 | 14,688 | 0.397 |
 | `snr` | 96.5 | 125.4 | 0.779 |
 
-A median throughput of 0.716 means the prism aperture loses about 30% of the light. **That median
-is stable across the whole 18-month archive and both camera configurations**, which is the
-informative part: dust accumulating on the prism would show as a downward drift, and there is none.
-The steady loss is therefore mostly the missing anti-reflection coatings, with dust and
-condensation riding on top as excursions rather than as a trend. The prism aperture is the brighter
-one in 23.6% of frames, which is scintillation rather than any reversal of the sign (see the
-frame-to-frame scatter below).
+A median throughput of 0.716 means the prism aperture loses about 30% of the light. The prism
+aperture is the brighter one in 23.6% of frames, which is scintillation rather than any reversal of
+the sign (see the frame-to-frame scatter below).
+
+**The throughput is getting worse.** Regressing nightly throughput on date over the 266
+well-sampled nights gives **-0.083 per year**, 95% confidence interval -0.099 to -0.068:
+
+| Period | Nights | Nightly throughput |
+|---|---|---|
+| 2025 H1 | 68 | 0.796 |
+| 2025 H2 | 87 | 0.744 |
+| 2026 H1 | 84 | 0.709 |
+| 2026 H2 | 27 | 0.685 |
+
+So the loss has two parts: a floor set by the missing anti-reflection coatings, and a slowly
+growing contribution consistent with dust settling on the prism. Condensation rides on top of both
+as excursions rather than as trend. At this rate the prism sheds roughly 8 percentage points of
+throughput a year, which is the figure to weigh against the risk of cleaning it.
+
+Two 299 Hz SER cubes from May 2024 measure 0.753 and 0.742 (see
+`scintillation_logging_notes.md`), above everything in this archive, which points the same way. But
+they come from a different instrument mode, exposure and code path, and extrapolating the trend
+back to that date predicts about 0.86 rather than 0.75, so the absolute scales are not comparable.
+Treat the 2024 numbers as agreeing in direction only; the within-archive trend is the evidence.
 
 **The prism spot is also fatter**: median FWHM ratio 1.57 (7.11 px against 4.32 px), and it is the
 larger of the two in 96.4% of the 135,941 frames where both were measured. Far too consistent to be
@@ -159,11 +176,15 @@ The peak ratio of 0.397 is just the two effects compounding: about 30% less ligh
 | 2 | 0.702 | 1.657 |
 | 3 (after the repair) | 0.679 | **1.347** |
 
-**The size ratio changed when the system was reassembled; the throughput did not.** So the size
-difference is at least partly an alignment or focus state, disturbed by taking the system apart and
-putting it back together, while the throughput is a property of the prism itself and survived the
-disassembly untouched. Reassembly improved the spot-size mismatch and did nothing for the light
-loss, which is what one would expect if the loss is coating and dust.
+**The two have different time signatures.** The size ratio *steps* at the reassembly, 1.65 to 1.35.
+The throughput does not step: fitting nightly throughput with a trend plus a step at 2026-04-09
+puts the step at -0.002, with a 95% interval of -0.030 to +0.027 that comfortably contains zero.
+Its decline is continuous straight through the repair.
+
+So the size difference is an alignment or focus state, disturbed by taking the system apart and put
+back differently, while the throughput is a gradually accumulating property of the prism surface
+that a disassembly neither helped nor hurt. That is what one expects if the size mismatch is
+alignment and the light loss is coating plus dust.
 
 Two things argue the throughput deficit is real rather than a measurement artifact. It holds per
 target within every epoch — 0.65 to 0.78 across all 17 target/epoch combinations with more than 500
