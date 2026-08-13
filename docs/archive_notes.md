@@ -133,10 +133,13 @@ The two spots differ in two distinct ways, and the mount repair separates them c
 | `peak` | 4,800 | 14,688 | 0.397 |
 | `snr` | 96.5 | 125.4 | 0.779 |
 
-A median throughput of 0.716 means the prism aperture loses about 30% of the light — more than the
-uncoated surfaces alone should cost, so dust on the prism is presumably making up the difference.
-The prism aperture is the brighter one in 23.6% of frames, which is scintillation rather than any
-reversal of the sign (see the frame-to-frame scatter below).
+A median throughput of 0.716 means the prism aperture loses about 30% of the light. **That median
+is stable across the whole 18-month archive and both camera configurations**, which is the
+informative part: dust accumulating on the prism would show as a downward drift, and there is none.
+The steady loss is therefore mostly the missing anti-reflection coatings, with dust and
+condensation riding on top as excursions rather than as a trend. The prism aperture is the brighter
+one in 23.6% of frames, which is scintillation rather than any reversal of the sign (see the
+frame-to-frame scatter below).
 
 **The prism spot is also fatter**: median FWHM ratio 1.57 (7.11 px against 4.32 px), and it is the
 larger of the two in 96.4% of the 135,941 frames where both were measured. Far too consistent to be
@@ -198,14 +201,45 @@ at a low level:
 | 2026-07-20 | 0.66 0.61 0.36 0.46 0.64 0.30 **0.08** |
 
 A normal night is flat to a few percent. The affected nights fall by more than an order of
-magnitude, sometimes recovering when the dew clears. **These frames still detect two stars and
-still produce seeing measurements**, so nothing upstream flags them — a frame at 0.02 throughput is
-measuring a prism spot that has lost 98% of its light, and any seeing derived from it is
-worthless.
+magnitude, sometimes recovering when the dew clears.
 
-This is worth turning into an actual quality flag: a per-night throughput median well below 0.6, or
-a strong downward trend within a night, marks data that should not be trusted. It is a
-straightforward filter to build on top of the existing table and has not been implemented.
+### Dew costs frames, not accuracy
+
+It is tempting to read the low-throughput frames as corrupted. They are not. **Seeing is measured
+from centroids**, and a centroid is insensitive to how much light the spot has lost as long as the
+spot is detected and centroided reliably. The archive says that holds comfortably even when the
+prism is badly dewed:
+
+| Night | throughput | median prism SNR | implied centroid sigma |
+|---|---|---|---|
+| 2026-05-15 (normal) | 0.663 | 61.7 | 0.038 px |
+| 2026-07-20 | 0.483 | 38.2 | 0.060 px |
+| 2026-06-05 | 0.333 | 43.6 | 0.045 px |
+| 2025-10-26 | **0.055** | 31.3 | 0.067 px |
+
+Even on the worst night in the archive the surviving prism detections centroid to better than a
+tenth of a pixel, against differential motion of order a pixel. Archive-wide the prism spot falls
+below SNR 20 in 2.45% of two-star frames, below SNR 10 in 0.32%, and below SNR 5 in 0.01%. Seeing
+from these frames is fine.
+
+**What dew actually costs is detections.** When the prism spot drops under the detection threshold
+the frame yields no seeing measurement at all, and that is strongly driven by throughput:
+
+| Night | throughput | single-star share of detections |
+|---|---|---|
+| 2026-05-15 (normal) | 0.663 | 3.2% |
+| 2026-07-20 | 0.483 | 20.7% |
+| 2026-06-05 | 0.333 | 45.1% |
+| 2026-04-27 | 0.235 | **70.3%** |
+
+Over the 266 well-sampled nights the correlation between nightly throughput and single-star share
+is -0.35, and it is monotonic in bins: median single-star share is 5.3% on nights above 0.8
+throughput, 7.5% between 0.6 and 0.8, 20.7% between 0.4 and 0.6, and 45% below 0.4.
+
+So the practical effect of a dewed prism is a thinner night — fewer usable measurements, spread
+unevenly through it — rather than biased ones. That makes nightly throughput useful as an
+engineering signal (when does the prism need cleaning or a dew heater) and as a completeness
+statistic, but **not** as a quality cut on the seeing values themselves.
 
 ### The label swap as a consistency check
 
