@@ -34,6 +34,7 @@ import traceback
 from pathlib import Path
 
 import numpy as np
+from astropy.time import Time
 from photutils.aperture import ApertureStats, CircularAperture
 
 from timdimm_tng.ser import load_ser_file
@@ -54,6 +55,10 @@ COLUMNS = ("host", "date", "path", "frames", "sampled", "used", "hz", "width", "
 
 DATE_RE = re.compile(r"(20\d\d)[-_]?(\d\d)[-_]?(\d\d)")
 
+#: a SER time field that was never written parses to the year 1, so anything this old is missing
+#: rather than wrong. The camera was commissioned in 2023.
+MIN_PLAUSIBLE_DATE = Time("2000-01-01")
+
 
 def date_from_path(path, root):
     """Last-resort date, for cubes whose timestamps could not be read.
@@ -73,22 +78,32 @@ def measure(path, target_frames):
     cube = load_ser_file(path)
     data = cube["data"]
     frame_times = cube["frame_times"]
-    times = frame_times.unix
     nframes = len(data)
+
     # the SER `dateobs` field is written with a broken epoch — it comes back as year 123 for a cube
     # taken in 2023 — but `dateobs_utc` and the per-frame timestamps are right, and they are the only
     # date many of these cubes carry: plenty are archived under names like bad3.ser.gz.
-    # This is UTC, matching DATE-OBS in the FITS archive, so a cube taken after midnight SAST lands
+    # These are UTC, matching DATE-OBS in the FITS archive, so a cube taken after midnight SAST lands
     # on the following date. Fine for epoch comparisons, wrong if you want whole observing nights.
-    out = {"date": frame_times[0].isot[:10] if nframes else "unknown",
-           "frames": nframes, "sampled": 0, "used": 0,
-           "hz": 1 / np.median(np.diff(times)) if nframes > 1 else np.nan,
+    # A truncated cube loses its timestamp trailer, which sits after the image data, but keeps the
+    # header time — so fall back to that before giving up and letting the path supply a date.
+    if len(frame_times):
+        date = frame_times[0].isot[:10]
+    elif cube["dateobs_utc"] > MIN_PLAUSIBLE_DATE:
+        date = cube["dateobs_utc"].isot[:10]
+    else:
+        date = "unknown"
+
+    out = {"date": date, "frames": nframes, "sampled": 0, "used": 0,
+           "hz": 1 / np.median(np.diff(frame_times.unix)) if len(frame_times) > 1 else np.nan,
            "width": data.shape[2], "height": data.shape[1],
            "sep_pix": np.nan, "thr_r11": np.nan, "thr_r20": np.nan, "scint": np.nan}
 
+    truncated = nframes < cube["nframe_header"]
     if nframes < 30:
-        # short cubes are the captures used to find the initial apertures, not measurements
-        out["status"] = "setup cube"
+        # short cubes are the captures used to find the initial apertures, not measurements — but a
+        # cube cut off by an interrupted capture is a different animal and should not be filed as one
+        out["status"] = "truncated" if truncated else "setup cube"
         return out
 
     step = max(1, nframes // target_frames)
@@ -148,7 +163,9 @@ def measure(path, target_frames):
             ratio = flux[:, faint] / flux[:, bright]
             out["scint"] = float(ratio.var() / ratio.mean() ** 2)
 
-    out["status"] = "ok"
+    # the frames that survived a truncation are still good, so the measurement stands — but say so,
+    # since such a cube covers less of the night than its frame count suggests
+    out["status"] = "ok, truncated" if truncated else "ok"
     return out
 
 
