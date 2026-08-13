@@ -55,28 +55,33 @@ COLUMNS = ("host", "date", "path", "frames", "sampled", "used", "hz", "width", "
 DATE_RE = re.compile(r"(20\d\d)[-_]?(\d\d)[-_]?(\d\d)")
 
 
-def guess_date(path, root):
-    """Pull an observing date out of the path, since SER headers cannot be trusted for it."""
-    # at least one archived cube carries a dateobs of year 125 while its dateobs_utc is correct, so
-    # the path is the more reliable source
+def date_from_path(path, root):
+    """Last-resort date, for cubes whose timestamps could not be read.
+
+    Checked against the cube timestamps over the 49 compressed cubes of one archive: 47 agree, one
+    cube has an unreadable header and needs this, and one is named in SAST while the header is UTC.
+    """
     for part in reversed(path.relative_to(root).parts):
         found = DATE_RE.search(part)
         if found:
             return "-".join(found.groups())
-    try:
-        stamp = load_ser_file(path)["dateobs_utc"]
-        return str(stamp)[:10]
-    except Exception:
-        return "unknown"
+    return "unknown"
 
 
 def measure(path, target_frames):
-    """Measure one cube. Returns a dict of COLUMNS values minus host/date/path."""
+    """Measure one cube. Returns a dict of COLUMNS values minus host and path."""
     cube = load_ser_file(path)
     data = cube["data"]
-    times = cube["frame_times"].unix
+    frame_times = cube["frame_times"]
+    times = frame_times.unix
     nframes = len(data)
-    out = {"frames": nframes, "sampled": 0, "used": 0,
+    # the SER `dateobs` field is written with a broken epoch — it comes back as year 123 for a cube
+    # taken in 2023 — but `dateobs_utc` and the per-frame timestamps are right, and they are the only
+    # date many of these cubes carry: plenty are archived under names like bad3.ser.gz.
+    # This is UTC, matching DATE-OBS in the FITS archive, so a cube taken after midnight SAST lands
+    # on the following date. Fine for epoch comparisons, wrong if you want whole observing nights.
+    out = {"date": frame_times[0].isot[:10] if nframes else "unknown",
+           "frames": nframes, "sampled": 0, "used": 0,
            "hz": 1 / np.median(np.diff(times)) if nframes > 1 else np.nan,
            "width": data.shape[2], "height": data.shape[1],
            "sep_pix": np.nan, "thr_r11": np.nan, "thr_r20": np.nan, "scint": np.nan}
@@ -181,9 +186,12 @@ def main():
                 if work is not None and work.exists():
                     work.unlink()
 
-            row = {"host": args.host, "date": guess_date(path, root),
-                   "path": str(path.relative_to(root))}
+            row = {"host": args.host, "path": str(path.relative_to(root))}
             row.update(measured)
+            # the cube's own timestamps are preferred; the path only has to cover the cubes that
+            # could not be read at all
+            if row.get("date", "unknown") == "unknown":
+                row["date"] = date_from_path(path, root)
             print("\t".join(
                 f"{row.get(name):.4f}" if isinstance(row.get(name), float) else str(row.get(name, ""))
                 for name in COLUMNS), flush=True)
