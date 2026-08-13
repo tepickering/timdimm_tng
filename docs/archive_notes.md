@@ -57,7 +57,7 @@ Spica (22,039) and Mimosa (20,077).
 together.** There is a single transition and no night contains frames from both epochs, so the
 archive splits cleanly on either date or gain.
 
-| | Epoch 1 | Epoch 2 |
+| | gain 350 | gain 200 |
 |---|---|---|
 | Nights | 2025-01-01 to **2025-10-29** | **2025-10-30** to 2026-08-09 |
 | Last / first frame | 2025-10-29T20:39:51 | 2025-10-30T17:55:56 |
@@ -72,11 +72,11 @@ Two things follow from this, and they are the reason the split matters:
 
 **Anything measured in counts is two populations, not one time series.** Background level, flux,
 peak and SNR all shift by a factor of several across the boundary for reasons that have nothing
-to do with the sky. Median `star0_flux` is 658,000 adu in epoch 1 against 64,000 in epoch 2.
+to do with the sky. Median `star0_flux` is 658,000 adu at gain 350 against 64,000 at gain 200.
 Always group by gain before summarising a count-valued column.
 
-**`bkg_median` is the offset pedestal, not sky.** It is *exactly* 1552 in every epoch-1 frame and
-*exactly* 160 in every epoch-2 frame — the 5th and 95th percentiles are identical to the median.
+**`bkg_median` is the offset pedestal, not sky.** It is *exactly* 1552 in every gain 350 frame and
+*exactly* 160 in every gain 200 frame — the 5th and 95th percentiles are identical to the median.
 At a 1 ms exposure the sky contributes nothing measurable, so the frame median is just the bias
 level. It is useful as a check that the camera configuration has not changed underneath you, and
 useless as a sky brightness measurement. `bkg_rms` (100 adu and 24.3 adu) is the quantity that
@@ -96,15 +96,15 @@ angle mod 180.
 
 | Epoch | Nights | Axis PA | Frames | Labels | Ended by |
 |---|---|---|---|---|---|
-| B | 2025-01-01 to **2026-02-18** | 150.0 deg | 91,432 | as A | USB cable replacement |
-| C | **2026-02-19** to 2026-03-09 | 71.7 deg | 7,733 | **swapped** | mount failure |
-| A | **2026-04-09** to 2026-08-08 | 103.9 deg | 36,943 | as B | current |
+| 1 | 2025-01-01 to **2026-02-18** | 150.0 deg | 91,432 | as 3 | USB cable replacement |
+| 2 | **2026-02-19** to 2026-03-09 | 71.7 deg | 7,733 | **swapped** | mount failure |
+| 3 | **2026-04-09** to 2026-08-08 | 103.9 deg | 36,943 | as 1 | current |
 
-Both transitions are sharp — 2026-02-18 is entirely epoch B and the following night entirely
-epoch C — because both were single discrete disturbances: the camera was rotated inadvertently
+Both transitions are sharp — 2026-02-18 is entirely epoch 1 and the following night entirely
+epoch 2 — because both were single discrete disturbances: the camera was rotated inadvertently
 while a USB cable was being replaced, and rotated again when the system was reassembled after the
 mount repair. Neither move coincides with the gain change of 2025-10-30, which falls in the middle
-of epoch B, so the camera settings and the camera orientation are independent splits.
+of epoch 1, so the camera settings and the camera orientation are independent splits.
 
 Spot separation is stable throughout at a median `sep_pix` of 52.2 px (5th-95th percentile 40.3 to
 68.5), consistent with the mask geometry and unaffected by the rotations.
@@ -138,9 +138,9 @@ is genuinely passing about 30% less light.
 
 | Epoch | flux ratio fat/thin | FWHM ratio fat/thin |
 |---|---|---|
-| B | 0.735 | 1.647 |
-| C | 0.702 | 1.657 |
-| A (after the repair) | 0.679 | **1.347** |
+| 1 | 0.735 | 1.647 |
+| 2 | 0.702 | 1.657 |
+| 3 (after the repair) | 0.679 | **1.347** |
 
 **The size ratio changed when the system was reassembled; the flux ratio did not.** Two independent
 effects, then. The size difference is an alignment or focus state — disturbed by taking the system
@@ -162,17 +162,17 @@ is hard to see it producing a stable 30%.
 
 ### The label swap as a consistency check
 
-The figures above are computed **after** undoing the epoch C label swap. The swap is useful in its
+The figures above are computed **after** undoing the epoch 2 label swap. The swap is useful in its
 own right, because it inverts every measure of the asymmetry at once:
 
 | Epoch | `star0` fatter | median `star0_fwhm`/`star1_fwhm` | median `flux_ratio` |
 |---|---|---|---|
-| B | 98.1% | 1.65 | 0.73 |
-| C | **2.0%** | **0.60** | **1.42** |
-| A | 91.8% | 1.35 | 0.68 |
+| 1 | 98.1% | 1.65 | 0.73 |
+| 2 | **2.0%** | **0.60** | **1.42** |
+| 3 | 91.8% | 1.35 | 0.68 |
 
-Epoch C inverts on both size and flux, and 1.42 is 1/0.70 — the same physical ratio read
-backwards. Relabelled, epochs B and C give asymmetry ratios of 1.65 and 1.66, agreeing to within
+Epoch 2 inverts on both size and flux, and 1.42 is 1/0.70 — the same physical ratio read
+backwards. Relabelled, epochs 1 and 2 give asymmetry ratios of 1.65 and 1.66, agreeing to within
 1%, which is an independent check that the correction is right rather than fitted.
 
 Median FWHM also differs between the two *camera* epochs (8.2 px against 6.2 px for `star0`), but
@@ -207,11 +207,11 @@ positions and `sep_pix` are unaffected. Regenerate rather than trusting an old t
 
 **Statistics from small subsets of this archive are biased**, because the frames the old code
 succeeded on were preferentially the brighter, fatter spots. An earlier 636-entry sample put the
-size ratio at 1.64 and the fatter-in fraction at 100%; the full archive, with the epoch C labels
+size ratio at 1.64 and the fatter-in fraction at 100%; the full archive, with the epoch 2 labels
 corrected, gives 1.57 and 96.4%.
 
 **Never aggregate `star0`/`star1` columns across the whole archive without splitting on epoch
-first.** The labels refer to different physical apertures in epoch C than in A and B, so a naive
+first.** The labels refer to different physical apertures in epoch 2 than in 1 and 3, so a naive
 archive-wide mean of any per-star column silently averages the two apertures together. The
 uncorrected `star0`-fatter fraction is 90.9% against a true 96.4%, and any quantity that differs
 between the apertures is diluted the same way.
