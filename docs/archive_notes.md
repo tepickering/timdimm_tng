@@ -238,8 +238,19 @@ throughput, 7.5% between 0.6 and 0.8, 20.7% between 0.4 and 0.6, and 45% below 0
 
 So the practical effect of a dewed prism is a thinner night — fewer usable measurements, spread
 unevenly through it — rather than biased ones. That makes nightly throughput useful as an
-engineering signal (when does the prism need cleaning or a dew heater) and as a completeness
-statistic, but **not** as a quality cut on the seeing values themselves.
+engineering signal and as a completeness statistic, but **not** as a quality cut on the seeing
+values themselves.
+
+**A dew heater is not an option.** The heat it puts into the light path would generate turbulence
+and corrupt the seeing measurement, which defeats the purpose of the instrument.
+
+The more promising route is a better safety check: **combine the flux ratio with the Adafruit
+humidity sensor now attached to the system.** The existing rule closes at 90% RH, and the question
+is whether condensation on the prism actually begins below that limit — the archive shows the
+prism dewing on nights that were presumably inside the operating envelope. The throughput ratio
+gives an independent, direct measurement of when the prism is dewing, so pairing it against logged
+RH tests the limit rather than assuming it. This needs another month or two of data with the
+Adafruit sensor running before it is worth analysing.
 
 ### The label swap as a consistency check
 
