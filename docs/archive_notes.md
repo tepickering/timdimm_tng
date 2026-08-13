@@ -68,29 +68,59 @@ carries the read noise.
 The `egain` ratio confirms the gain scaling: 0.148 / 0.026 = 5.7, against 10^(15.0/20) = 5.62 for
 a 150-unit change in a 0.1 dB gain index. See the ASI432MM notes for the calibration itself.
 
-## Spot properties
+## Three orientation epochs
+
+`star0` and `star1` are **x-sorted positional labels, not mask-aperture identities**: whichever
+spot has the smaller x is called `star0`. The mask axis moved twice during the archive, and both
+moves carried it across a position angle of 90 degrees — which is exactly where the two spots
+exchange x-order. **The labels therefore swap between epochs.** `sep_pa` is what identifies the
+epoch; it is folded into (-90, +90] by the x-sorting, so the table below reports it as an axis
+angle mod 180.
+
+| Epoch | Nights | Axis PA | Frames | Labels |
+|---|---|---|---|---|
+| B | 2025-01-01 to **2026-02-18** | 150.0 deg | 91,432 | as A |
+| C | **2026-02-19** to 2026-03-09 | 71.7 deg | 7,733 | **swapped** |
+| A | **2026-04-09** to 2026-08-08 | 103.9 deg | 36,943 | as B |
+
+Both transitions are sharp — 2026-02-18 is entirely epoch B and the following night entirely
+epoch C. There is no data between 2026-03-10 and 2026-04-08. Neither move coincides with the gain
+change of 2025-10-30, which falls in the middle of epoch B: the camera settings and the camera
+orientation were changed on separate occasions, so the two splits have to be applied
+independently.
+
+Spot separation is stable throughout at a median `sep_pix` of 52.2 px (5th-95th percentile 40.3 to
+68.5), consistent with the mask geometry and unaffected by the rotations.
+
+## The two spots are not identical
 
 The two spots are the same star seen through two apertures of the DIMM mask, so in principle they
-should be identical. They are not.
+should have the same size. One is consistently much fatter than the other: **the same physical
+aperture gives the larger spot in 96.4% of the 135,941 frames where both were measured**, with a
+median FWHM ratio of 1.57 (7.11 px against 4.32 px). The effect is far too consistent to be
+seeing, which would average out between two apertures a few centimetres apart on the same night.
+A focus difference between the mask apertures is the obvious candidate. It has not been chased
+down.
 
-**`star0` is measurably fatter than `star1`**: median FWHM 6.96 px against 4.37 px, a ratio of
-1.54, and `star0` is the larger one in 90.9% of the 135,941 frames where both were measured. The
-effect is far too consistent to be seeing, which would average out between two apertures a few
-centimetres apart on the same night. It is most likely a focus difference between the two mask
-apertures, or a genuine optical asymmetry. It has not been chased down.
+That figure is computed **after** undoing the epoch C label swap. The swap is what makes the
+asymmetry a useful check on the labelling, because it inverts every measure of it at once:
 
-`star0` and `star1` are **x-sorted positional labels, not mask-aperture identities** — the camera
-orientation changed at some point during the archive, so the same physical aperture is not
-necessarily `star0` throughout. `flux_ratio` and `sep_pa` are recorded so the assignment can be
-recovered downstream. Any analysis of the size asymmetry needs to establish which label
-corresponds to which aperture in the epoch it is looking at.
+| Epoch | `star0` fatter | median `star0_fwhm`/`star1_fwhm` | median `flux_ratio` |
+|---|---|---|---|
+| B | 98.1% | 1.65 | 0.73 |
+| C | **2.0%** | **0.60** | **1.42** |
+| A | 91.8% | 1.35 | 0.68 |
 
-Median FWHM also differs between the two camera epochs (8.2 px against 6.2 px for `star0`). The
-target mix changed at the same time, so this is not yet attributable to focus, seeing, or the
-configuration change.
+Epoch C inverts on both size and flux, and 1.42 is 1/0.70 — the same physical ratio read
+backwards. Relabelled, epochs B and C give asymmetry ratios of 1.65 and 1.66, agreeing to within
+1%, which is an independent check that the correction is right rather than fitted.
 
-Spot separation is stable at a median `sep_pix` of 52.2 px (5th-95th percentile 40.3 to 68.5),
-consistent with the mask geometry.
+**Epoch A's asymmetry is genuinely weaker** (1.35 against 1.65), and it is not a labelling
+artifact. Epoch A begins after the month-long gap in spring 2026, and the axis moved 30 degrees at
+the same time, so a refocus or realignment during that shutdown would explain both. Median FWHM
+also differs between the two *camera* epochs (8.2 px against 6.2 px for `star0`), but the target
+mix changed at the same moment, so that one is confounded and not attributable to focus, seeing or
+the configuration change.
 
 ## Measurement quality
 
@@ -120,8 +150,14 @@ positions and `sep_pix` are unaffected. Regenerate rather than trusting an old t
 
 **Statistics from small subsets of this archive are biased**, because the frames the old code
 succeeded on were preferentially the brighter, fatter spots. An earlier 636-entry sample put the
-`star0`/`star1` size ratio at 1.64 and the fatter-in fraction at 100%; the full archive gives 1.54
-and 90.9%.
+size ratio at 1.64 and the fatter-in fraction at 100%; the full archive, with the epoch C labels
+corrected, gives 1.57 and 96.4%.
+
+**Never aggregate `star0`/`star1` columns across the whole archive without splitting on epoch
+first.** The labels refer to different physical apertures in epoch C than in A and B, so a naive
+archive-wide mean of any per-star column silently averages the two apertures together. The
+uncorrected `star0`-fatter fraction is 90.9% against a true 96.4%, and any quantity that differs
+between the apertures is diluted the same way.
 
 **The frames themselves are gone.** `scripts/daily_cleanup` deletes each frame once it has been
 measured, on the principle that everything worth keeping about a frame ends up in the table. The
