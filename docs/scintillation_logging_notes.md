@@ -56,39 +56,70 @@ transparency changes and cloud move both apertures together and cancel, leaving 
 between two apertures a few centimetres apart. Definition used in the exploratory work was the
 normalised variance `var(r)/mean(r)**2`.
 
-## The open problem: the cubes may not resolve the scintillation
+## Cadence: what the cubes actually sample
 
-This is the question the spec has to answer first, because it may need a change to acquisition
-rather than to analysis.
+Cube cadence varies by more than a factor of 30 across the archived examples, so any statement
+about what is measurable has to name which configuration it refers to. **The intended rate is
+299 Hz**, reached with a 400x400 ROI when the camera is running at full USB 3.x speed.
 
-Measured from `indi_record_2023-06-22@17-14-39.ser`:
+| Example | Frame size | Frames | Duration | Cadence |
+|---|---|---|---|---|
+| `seeing_2024-05-05T01:57`, `T04:49` | 400x400 | 4423 | 14.76 s | **3.342 ms, 299 Hz** |
+| `indi_2023-12-08@20-48-35` | 400x400 | 4420 | 14.75 s | 3.342 ms, 299 Hz |
+| `indi_2023-12-08` (7 cubes) | 400x400 | 1776 | 14.74 s | 8.316 ms, 120 Hz |
+| `indi_2023-06-22@17-14-39` | 416x443 | 2268 | 51.80 s | 22.9 ms, 43.7 Hz |
+| `indi_2025-03-11@01-09-43` | 1608x1104 | 156 | 14.73 s | 95.1 ms, 10.5 Hz |
 
-| | |
-|---|---|
-| Frames | 2268 |
-| Duration | 51.8 s |
-| Cadence | 22.9 ms median, **43.7 Hz** |
-| Cadence jitter | std 1.5 ms; 92% of intervals within 10% of the median |
+The 156-frame, 95 ms recordings appear to be setup captures rather than seeing measurements —
+`indi_2023-12-08` contains one alongside its fast cubes. The full-frame 2025-03-11 example is also
+**saturating**, 86 pixels at or above 65000, which would bias centroids taken from it.
 
-**The flux ratio is already decorrelated at one frame of lag.** Autocorrelation of the per-frame
-ratio for lags 1 to 6 came out `[-0.014, -0.012, -0.020, 0.012, -0.000, 0.100]` — consistent with
-zero. So the scintillation time constant is shorter than the 22.9 ms sampling interval and cannot
-be measured from these cubes at all.
+Cadence jitter is small at the fast rates: 0.15 to 0.21 ms standard deviation at 299 Hz, with 98%
+of intervals within 10% of the median. It is not perfectly uniform, so an estimator should still
+use `frame_times` rather than frame index, but this is nothing like the 43.7 Hz cube's 6% scatter.
 
-That is the expected order of magnitude: the wind crossing time of a 50 mm aperture at 10 m/s is
-about 5 ms, so several hundred Hz would be needed to resolve it. Image motion is slower, typically
-tens of milliseconds, so its time constant may be measurable at 43.7 Hz — but marginally, and that
-needs checking rather than assuming.
+## What is measurable at 299 Hz
 
-Caveat on the number above: it came from a quick pass with **fixed** apertures rather than the
-pipeline's per-frame recentering, and only 551 of 2268 frames had both apertures usable, because
-image motion carries the spots out of a fixed aperture. The lag-1 decorrelation is unlikely to be
-an artifact of that, but it should be redone properly through `dimm_calc()` before the spec relies
-on it.
+Measured through `dimm_calc()`, the real centroiding path, on the two `seeing_2024-05-05` cubes.
+Both are clean — 4423/4423 and 4422/4423 frames usable — so these correlations are computed on
+essentially gapless series.
 
-**The cadence is also not uniform**, which rules out a naive FFT or an autocorrelation on frame
-index. Either resample onto a uniform grid, or use an estimator that takes the timestamps —
-a structure function, or a Lomb-Scargle periodogram.
+| | 01:57 | 04:49 |
+|---|---|---|
+| Throughput | 0.753 | 0.742 |
+| Scintillation index of the ratio | 0.323 | 1.259 |
+| Flux ratio correlation at 3.34 ms | **0.10** | **0.01** |
+| Image motion correlation at 3.34 / 6.68 / 10.03 ms | **0.63 / 0.28 / 0.13** | **0.47 / 0.17 / 0.04** |
+
+**Scintillation is still unresolved at 299 Hz.** The flux ratio is decorrelated after a single
+frame. Its time constant is therefore below 3.34 ms, consistent with the ~5 ms wind crossing time
+of a 50 mm aperture at 10 m/s but not measurable from it. Resolving it would need roughly 1 kHz,
+which is an acquisition question — and at 400x400 and 16 bits that is about 128 MB/s before
+overheads.
+
+**Image motion is resolved at 299 Hz**, but only just. The decay is clean and monotonic, and
+log-interpolating to 1/e gives **tau of about 5.6 ms and 4.1 ms** for the two cubes. That is only
+1.2 to 1.7 samples per time constant, so it supports a fit over the first three or four lags rather
+than reading an e-folding off the curve, and the spec should say which.
+
+A caution carried forward: an earlier attempt on `indi_2023-12-08@20-48-35`, also a 299 Hz cube,
+kept only 435 of 4420 frames because the target was faint enough to need a threshold of 7 in
+`find_apertures()`. Correlating the surviving frames by index gave a nonsense answer that
+contradicted the 120 Hz cube. That was a bad cube rather than a property of 299 Hz, but it shows
+two things the spec must require: **correlate by frame lag with dropouts left as gaps**, never by
+position in a compacted array, and **record how many frames survived**, since a time constant from
+a decimated series is not a measurement.
+
+## A cross-check worth noting
+
+The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from
+the single pre-seeing exposures in `archive_notes.md`. Those come from a different instrument mode,
+a different code path, and a different year. Two independent routes to the same number is decent
+evidence that the prism throughput is a real, stable property and not an artifact of either
+pipeline.
+
+The estimator bias shows up again on this real data: mean-of-ratios gives 0.863 and 1.094 against
+the correct 0.753 and 0.742.
 
 ## What the pipeline already provides
 
@@ -107,9 +138,16 @@ the samples are contiguous.
 ## Open questions for the spec
 
 - **Definition of each time constant.** Autocorrelation e-folding, structure function, or fit to a
-  model? The reference papers should settle this rather than a choice made here.
-- **Can the current cubes support it at all?** If not: raise the frame rate (at what cost to SNR
-  and to the seeing measurement?), or log only what is measurable and record the limit.
+  model? At 1.2 to 1.7 samples per time constant an e-folding read off the curve is too coarse, so
+  this probably has to be a fit. The reference papers should settle it rather than a choice made
+  here.
+- **What to do about the scintillation time constant**, given 299 Hz does not resolve it. Log it as
+  an upper limit, raise the frame rate towards 1 kHz, or drop it from the schema? Raising the rate
+  costs SNR per frame and bandwidth, and the effect on the seeing measurement itself would have to
+  be checked.
+- **Whether the frame rate is stable enough to compare across nights.** The archive shows 10.5,
+  43.7, 120 and 299 Hz configurations. A time constant logged without its cadence is not
+  interpretable, so the cadence belongs in the schema.
 - **HDIMM.** The three-aperture mask has no clear/prism pair, so the flux ratio as defined does not
   describe it. Log nothing, or define something else?
 - **File format and rotation.** `scintillation.csv` schema, and whether it rotates nightly like the
