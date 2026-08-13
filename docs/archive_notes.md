@@ -152,11 +152,44 @@ growing contribution consistent with dust settling on the prism. Condensation ri
 as excursions rather than as trend. At this rate the prism sheds roughly 8 percentage points of
 throughput a year, which is the figure to weigh against the risk of cleaning it.
 
-Two 299 Hz SER cubes from May 2024 measure 0.753 and 0.742 (see
-`scintillation_logging_notes.md`), above everything in this archive, which points the same way. But
-they come from a different instrument mode, exposure and code path, and extrapolating the trend
-back to that date predicts about 0.86 rather than 0.75, so the absolute scales are not comparable.
-Treat the 2024 numbers as agreeing in direction only; the within-archive trend is the evidence.
+### The SER cubes confirm it independently
+
+The archived SER cubes carry the same measurement back to the ASI432MM's commissioning in June
+2023, through a different instrument mode and a different code path. Of the 61 archived cubes, 44
+give a clean throughput after cutting those with fewer than 150 usable frames, no real two-spot
+separation, or a scintillation index above 5:
+
+| Date | Cubes | Throughput | Spread | Separation | Rate |
+|---|---|---|---|---|---|
+| 2023-06-22 | 7 | 0.936 | 0.012 | 48-52 px | 270 Hz |
+| 2023-06-23 | 2 | 0.866 | 0.012 | 25 px | 271 Hz |
+| 2023-06-24 | 4 | 0.861 | 0.014 | 24 px | 381 Hz |
+| 2023-07-03 | 22 | 0.878 | 0.026 | 38-44 px | 300 Hz |
+| 2023-12-08 | 6 | 0.803 | 0.031 | 47-48 px | 120 Hz |
+| 2024-05-05 | 2 | 0.750 | 0.021 | 46-50 px | 299 Hz |
+| 2025-03-11 | 1 | 0.704 | - | 62 px | 11 Hz |
+
+That is **-0.114 per year** over 1.72 years, against -0.083 per year from the single exposures.
+Two independent datasets, same sign, comparable rate. The prism was passing about 94% of the clear
+aperture when it was commissioned and is now under 70%.
+
+Three limits on how far this can be pushed:
+
+**The two datasets are not on a common scale.** At the same epoch — March 2025 — the SER cubes give
+0.704 while the single exposures give 0.796 for 2025 H1. An offset of about 0.09 between methods,
+so the two series cannot be merged into one fit, only compared as trends.
+
+**The optics were changing during commissioning.** Spot separation runs 52, 25, 24, 38-44, 47 px
+across June to December 2023, so the mask or the focal length moved more than once. The June 23-24
+points at 24-25 px are not the same configuration as the rest, and their falling on the trend is
+partly luck.
+
+**A straight line over-extrapolates.** The SER trend predicts 0.524 for August 2026 where the
+single exposures measure 0.685, so the decline is flattening rather than linear — consistent with
+dust approaching an equilibrium, and a reason not to forecast from either slope.
+
+Aperture radius is not driving any of this: measuring at r=11 and r=20 agrees to about 1% at every
+epoch.
 
 **The prism spot is also fatter**: median FWHM ratio 1.57 (7.11 px against 4.32 px), and it is the
 larger of the two in 96.4% of the 135,941 frames where both were measured. Far too consistent to be
