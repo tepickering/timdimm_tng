@@ -150,46 +150,90 @@ well-sampled nights gives **-0.083 per year**, 95% confidence interval -0.099 to
 So the loss has two parts: a floor set by the missing anti-reflection coatings, and a slowly
 growing contribution consistent with dust settling on the prism. Condensation rides on top of both
 as excursions rather than as trend. At this rate the prism sheds roughly 8 percentage points of
-throughput a year, which is the figure to weigh against the risk of cleaning it.
+throughput a year, which is the figure to weigh against the risk of cleaning it. This is the rate
+on the plateau: the SER cubes below show a much faster settling in the first months after
+installation, which had already finished before this archive begins.
 
 ### The SER cubes confirm it independently
 
 The archived SER cubes carry the same measurement back to the ASI432MM's commissioning in June
-2023, through a different instrument mode and a different code path. Of the 61 archived cubes, 44
-give a clean throughput after cutting those with fewer than 150 usable frames, no real two-spot
-separation, or a scintillation index above 5:
+2023, through a different instrument mode and a different code path. `scripts/prism_throughput` was
+run over the archives on three machines — this one, `auriga` and `vulpecula` — giving 310 rows over
+207 distinct cubes. The three archives overlap heavily: 103 rows are the same cube held on more than
+one machine. Those are a free reproducibility check, and they pass — every repeated cube returns the
+same throughput to four decimal places on both machines. The only apparent disagreement is three
+different files that happen to share the name `seeing.ser.gz`, which is why cubes are deduplicated
+on the measurement, not on the filename.
+
+After cutting cubes with fewer than 150 usable frames, no real two-spot separation, or a
+scintillation index above 5, 141 remain, 128 of them carrying a usable date. Full-frame cubes are
+then dropped as well — see below — leaving 123 cubes over 14 dates:
 
 | Date | Cubes | Throughput | Spread | Separation | Rate |
 |---|---|---|---|---|---|
-| 2023-06-22 | 7 | 0.936 | 0.012 | 48-52 px | 270 Hz |
-| 2023-06-23 | 2 | 0.866 | 0.012 | 25 px | 271 Hz |
-| 2023-06-24 | 4 | 0.861 | 0.014 | 24 px | 381 Hz |
-| 2023-07-03 | 22 | 0.878 | 0.026 | 38-44 px | 300 Hz |
-| 2023-12-08 | 6 | 0.803 | 0.031 | 47-48 px | 120 Hz |
-| 2024-05-05 | 2 | 0.750 | 0.021 | 46-50 px | 299 Hz |
-| 2025-03-11 | 1 | 0.704 | - | 62 px | 11 Hz |
+| 2023-06-22 | 13 | 0.936 | 0.012 | 48-52 px | 270 Hz |
+| 2023-06-23 | 4 | 0.866 | 0.012 | 25-26 px | 271 Hz |
+| 2023-06-24 | 8 | 0.861 | 0.014 | 24 px | 381 Hz |
+| 2023-07-03 | 43 | 0.877 | 0.025 | 38-44 px | 300 Hz |
+| 2023-12-08 | 30 | 0.795 | 0.041 | 47-48 px | 299 Hz |
+| 2024-04-11 | 4 | 0.734 | 0.016 | 45-49 px | 299 Hz |
+| 2024-04-12 | 1 | 0.695 | - | 49 px | 299 Hz |
+| 2024-04-13 | 2 | 0.710 | 0.016 | 52-53 px | 299 Hz |
+| 2024-04-29 | 7 | 0.747 | 0.018 | 58-59 px | 299 Hz |
+| 2024-04-30 | 3 | 0.733 | 0.017 | 60-61 px | 299 Hz |
+| 2024-05-05 | 4 | 0.750 | 0.021 | 46-50 px | 299 Hz |
+| 2024-06-17 | 2 | 0.750 | 0.006 | 52 px | 299 Hz |
+| 2024-12-11 | 1 | 0.706 | - | 66 px | 299 Hz |
+| 2024-12-13 | 1 | 0.739 | - | 54 px | 300 Hz |
 
-That is **-0.114 per year** over 1.72 years, against -0.083 per year from the single exposures.
-Two independent datasets, same sign, comparable rate. The prism was passing about 94% of the clear
-aperture when it was commissioned and is now under 70%.
+The prism was passing about 94% of the clear aperture when it was commissioned and is now under
+70%. Within any one night the spread is small — 0.012 across thirteen cubes on 2023-06-22 — so the
+year-scale change is far larger than the measurement scatter.
 
-Three limits on how far this can be pushed:
+**The decline is not linear, and that is the main thing the extra dates buy.** With only three
+points after commissioning the earlier fit gave -0.114 per year and predicted 0.524 for August 2026
+against a measured 0.685, which was recorded here as unexplained over-extrapolation. The denser
+series shows why. The throughput falls at **-0.305 per year over the first six months** and then at
+**-0.030 per year** across the following year. An exponential settling onto an asymptote fits all
+fourteen dates with an rms residual of 0.023: floor **0.721**, amplitude 0.217, time constant
+**3.7 months**. That form predicts 0.721 for August 2026 and the post-commissioning linear segment
+predicts 0.672, bracketing the measured 0.685 — where the single straight line missed by 0.16.
 
-**The two datasets are not on a common scale.** At the same epoch — March 2025 — the SER cubes give
-0.704 while the single exposures give 0.796 for 2025 H1. An offset of about 0.09 between methods,
-so the two series cannot be merged into one fit, only compared as trends.
+So the shape is a fast initial settling in the months after installation onto a plateau near 0.72,
+with the slow residual drift of a few points a year that the single exposures measure independently
+as -0.083 per year. The -0.114 per year quoted before was an average over a transient and a plateau
+and describes neither.
 
-**The optics were changing during commissioning.** Spot separation runs 52, 25, 24, 38-44, 47 px
-across June to December 2023, so the mask or the focal length moved more than once. The June 23-24
-points at 24-25 px are not the same configuration as the rest, and their falling on the trend is
-partly luck.
+Three limits remain on how far this can be pushed:
 
-**A straight line over-extrapolates.** The SER trend predicts 0.524 for August 2026 where the
-single exposures measure 0.685, so the decline is flattening rather than linear — consistent with
-dust approaching an equilibrium, and a reason not to forecast from either slope.
+**Full-frame cubes have to be excluded.** The five 1608x1104 cubes read high and disagree between
+aperture radii by 0.054, against 0.002 for the ROI cubes. They are saturating setup captures:
+clipping the bright spot pushes the ratio toward unity, and the amount depends on the radius. This
+retracts the 2025-03-11 point (0.704) used in the earlier version of this table — it was one such
+cube, and its agreement with the trend was coincidence.
 
-Aperture radius is not driving any of this: measuring at r=11 and r=20 agrees to about 1% at every
-epoch.
+**The two datasets are still not on a common scale.** The SER series and the single exposures
+cannot be merged into one fit, only compared as trends. With 2025-03-11 withdrawn there is now no
+SER cube contemporaneous with the single-exposure archive at all, so the size of the offset between
+methods is no longer measured. Closing that gap needs a deliberate SER capture at the present epoch.
+
+**The optics were changing during commissioning.** Spot separation runs 24 to 66 px across the
+series, so the mask or the focal length moved several times. Restricting to the single most
+populated configuration (separation 45-55 px, 57 cubes over 8 dates) gives -0.136 per year with a
+95% interval of -0.262 to +0.050 — same picture, and the same non-linearity, but too few dates for
+the slope alone to be worth much. Group by separation before comparing anything across dates.
+
+Aperture radius is not driving any of this: on the dates with four or more cubes, r=11 and r=20
+agree to within 0.023. The larger disagreements are all on single-cube dates.
+
+**Thirteen good cubes are undated.** They pass every quality cut but sit at paths like `bad3.ser.gz`
+and `archive/canopus4.ser.gz` with no date anywhere in them, and `prism_throughput` takes the date
+from the path because SER headers cannot be trusted for it. Their values (0.73 to 0.81) are
+consistent with the 2024 plateau but they cannot be placed on the curve. File modification times on
+`auriga` and `vulpecula` would probably recover them.
+
+The pooled, deduplicated survey is kept at `~/SAAO/timdimm_data/throughput_pooled.ecsv`, one row per
+distinct cube with the machine it came from. The per-machine TSVs it was built from are beside it.
 
 **The prism spot is also fatter**: median FWHM ratio 1.57 (7.11 px against 4.32 px), and it is the
 larger of the two in 96.4% of the 135,941 frames where both were measured. Far too consistent to be
