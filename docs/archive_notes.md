@@ -109,56 +109,103 @@ of epoch 1, so the camera settings and the camera orientation are independent sp
 Spot separation is stable throughout at a median `sep_pix` of 52.2 px (5th-95th percentile 40.3 to
 68.5), consistent with the mask geometry and unaffected by the rotations.
 
+## Which aperture is which
+
+The mask has **one clear aperture and one carrying a small-angle wedge prism**. The prism is what
+splits a single target into two images: it deflects its beam by a fixed small angle, which is why
+`sep_pix` is stable at 52 px regardless of the star. The prism has no anti-reflection coating
+worth the name, and it collects dust and condensation.
+
+**The prism aperture is therefore always the fainter one, and `flux_ratio` is what identifies the
+apertures.** This is the reliable discriminant — more so than position, which the rotations move
+around, or size. It also means the throughput ratio is a direct measure of the state of the prism,
+which turns out to be useful (see below).
+
 ## The two spots are not identical
 
-The two spots are the same star seen through two apertures of the DIMM mask, so in principle they
-should match. They differ in two distinct ways, and the mount repair separates the two cleanly.
+The two spots differ in two distinct ways, and the mount repair separates them cleanly.
 
-**One spot is much fatter**: the same physical aperture gives the larger spot in 96.4% of the
-135,941 frames where both were measured, median FWHM ratio 1.57 (7.11 px against 4.32 px). The
-effect is far too consistent to be seeing, which would average out between two apertures a few
-centimetres apart on the same night.
+**The prism spot is fainter**: against the clear aperture it delivers
 
-**The fatter spot is also the fainter one** — not what a naive reading would predict, and the more
-interesting of the two findings. Against the sharp aperture the fat one delivers:
-
-| | fat aperture | thin aperture | ratio |
+| | prism | clear | ratio |
 |---|---|---|---|
 | `flux` | 194,646 | 278,088 | **0.716** |
 | `peak` | 4,800 | 14,688 | 0.397 |
 | `snr` | 96.5 | 125.4 | 0.779 |
 
-The fat aperture is brighter in only 23.6% of frames. The peak ratio is roughly what spreading the
-same light over a 1.57x wider spot would give (area ratio ~2.5), so that part is just defocus —
-but **total flux is not conserved, and it should be.** The photometry radius is iterated onto
-`3*sigma`, so it grows with the spot and captures ~99% of a gaussian either way. The fat aperture
-is genuinely passing about 30% less light.
+A median throughput of 0.716 means the prism aperture loses about 30% of the light — more than the
+uncoated surfaces alone should cost, so dust on the prism is presumably making up the difference.
+The prism aperture is the brighter one in 23.6% of frames, which is scintillation rather than any
+reversal of the sign (see the frame-to-frame scatter below).
 
-### The repair separates focus from throughput
+**The prism spot is also fatter**: median FWHM ratio 1.57 (7.11 px against 4.32 px), and it is the
+larger of the two in 96.4% of the 135,941 frames where both were measured. Far too consistent to be
+seeing, which would average out between two apertures a few centimetres apart on the same night.
+Candidate causes are aberration introduced by the extra optic, or scattering off the dust and the
+poor coating — the same contamination that costs the throughput. The two mechanisms are not
+distinguished here, though the repair below argues at least part of it is alignment.
 
-| Epoch | flux ratio fat/thin | FWHM ratio fat/thin |
+The peak ratio of 0.397 is just the two effects compounding: about 30% less light spread over a
+1.57x wider spot (area ratio ~2.5).
+
+### The repair separates alignment from throughput
+
+| Epoch | throughput prism/clear | FWHM ratio prism/clear |
 |---|---|---|
 | 1 | 0.735 | 1.647 |
 | 2 | 0.702 | 1.657 |
 | 3 (after the repair) | 0.679 | **1.347** |
 
-**The size ratio changed when the system was reassembled; the flux ratio did not.** Two independent
-effects, then. The size difference is an alignment or focus state — disturbed by taking the system
-apart and putting it back together. The throughput difference survived a full disassembly, which
-points at the mask itself: unequal aperture areas, or one aperture partly obstructed or vignetted.
-That would make it a fixed property of the optics rather than something a realignment can fix.
+**The size ratio changed when the system was reassembled; the throughput did not.** So the size
+difference is at least partly an alignment or focus state, disturbed by taking the system apart and
+putting it back together, while the throughput is a property of the prism itself and survived the
+disassembly untouched. Reassembly improved the spot-size mismatch and did nothing for the light
+loss, which is what one would expect if the loss is coating and dust.
 
-Two things argue the flux deficit is real rather than a measurement artifact. It holds per target
-within every epoch — 0.65 to 0.78 across all 17 target/epoch combinations with more than 500
+Two things argue the throughput deficit is real rather than a measurement artifact. It holds per
+target within every epoch — 0.65 to 0.78 across all 17 target/epoch combinations with more than 500
 frames, spanning both gain settings and a wide range of stellar brightness. And the correlation
-between log flux ratio and log FWHM ratio is only 0.24, so the deficit does not track the size
+between log throughput and log FWHM ratio is only 0.24, so the deficit does not track the size
 difference frame to frame, as it would if measuring a broader spot were what produced it.
 
-Not yet ruled out: the local background annulus scales with the aperture, so the fat spot's annulus
-sits farther out, and at a median separation of 52 px the two annuli stand in different relation to
-the neighbouring spot. That mechanism is known to bite here — it distorted a synthetic test during
-development. It would take a controlled check to exclude a few percent of contamination, though it
-is hard to see it producing a stable 30%.
+Not yet ruled out: the local background annulus scales with the aperture, so the prism spot's
+annulus sits farther out, and at a median separation of 52 px the two annuli stand in different
+relation to the neighbouring spot. That mechanism is known to bite here — it distorted a synthetic
+test during development. It would take a controlled check to exclude a few percent of
+contamination, though it is hard to see it producing a stable 30%.
+
+### Throughput as a condensation monitor
+
+Because the prism is the surface that dews up, **the nightly trend in throughput detects
+condensation directly**, and it is a much sharper signal than the nightly median suggests.
+
+Frame to frame the ratio is very broad — 5th to 95th percentile 0.28 to 1.69, exceeding 1.0 in 24%
+of frames. That is scintillation: two small apertures, 1 ms exposures, uncorrelated speckle. It
+averages out. Per-night medians are stable at **0.727, 5th-95th percentile 0.608 to 0.850** across
+the 266 nights with at least 100 frames. Between-night scatter of the medians is 0.092 against a
+typical within-night scatter of 0.473, so the nightly median is the statistic that carries
+information about the optics and single frames carry almost none.
+
+Bad nights are unmistakable, and they decline monotonically through the night rather than sitting
+at a low level:
+
+| Night | throughput binned through the night |
+|---|---|
+| 2026-05-15 (normal) | 0.69 0.70 0.66 0.66 0.67 0.64 0.65 |
+| 2025-10-26 | 0.77 0.72 0.62 0.34 **0.02** 0.01 0.01 — never recovers |
+| 2026-04-27 | 0.65 0.60 0.46 0.15 **0.06** — over about 90 minutes |
+| 2026-06-05 | 0.55 0.25 **0.06** 0.20 0.42 0.64 — dews over, then clears |
+| 2026-07-20 | 0.66 0.61 0.36 0.46 0.64 0.30 **0.08** |
+
+A normal night is flat to a few percent. The affected nights fall by more than an order of
+magnitude, sometimes recovering when the dew clears. **These frames still detect two stars and
+still produce seeing measurements**, so nothing upstream flags them — a frame at 0.02 throughput is
+measuring a prism spot that has lost 98% of its light, and any seeing derived from it is
+worthless.
+
+This is worth turning into an actual quality flag: a per-night throughput median well below 0.6, or
+a strong downward trend within a night, marks data that should not be trusted. It is a
+straightforward filter to build on top of the existing table and has not been implemented.
 
 ### The label swap as a consistency check
 
