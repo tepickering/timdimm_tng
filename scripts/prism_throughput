@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+"""
+Survey the throughput of the prism aperture relative to the clear one across a tree of SER cubes.
+
+The DIMM mask has one clear aperture and one carrying the wedge prism. The prism has poor
+anti-reflection coatings and collects dust, so it passes less light, and how much less is a measure
+of how far the optics have degraded. Run this wherever archived cubes live and pool the output: the
+point is to extend the throughput history, and the cubes on any one machine only cover part of it.
+
+Writes one tab-separated row per cube to stdout, and nothing else, so output can be concatenated
+across machines. Rows are emitted as each cube finishes rather than at the end, so a long run can be
+watched and an interrupted one still leaves usable results.
+
+Quality flags are reported, not applied. Deciding what to exclude is the analysis step and belongs
+with the pooled data, not here.
+
+Usage
+-----
+    prism_throughput ~/SAAO/timdimm_data > throughput_$(hostname -s).tsv
+    prism_throughput --frames 800 /data/archive       # more frames per cube, slower
+
+Cubes are decompressed one at a time into a temporary directory and deleted immediately, so the
+extra disk needed is one cube rather than the whole tree.
+"""
+
+import argparse
+import gzip
+import platform
+import re
+import shutil
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+
+import numpy as np
+from photutils.aperture import ApertureStats, CircularAperture
+
+from timdimm_tng.ser import load_ser_file
+from timdimm_tng.analyze_cube import find_apertures, dimm_calc
+
+#: flux is measured at two radii. The default r=11 truncates the fatter prism spot more than the
+#: sharp one, biasing the ratio by an amount that depends on the size ratio — which has changed over
+#: the archive. Comparing the two says how much of any trend could be that artifact rather than the
+#: optics. They have agreed to about 1% on everything measured so far.
+RADII = (11.0, 20.0)
+
+#: thresholds tried in turn when locating the two spots. Faint targets need a low one, but a low one
+#: on a noisy frame finds noise, so start strict.
+THRESHOLDS = (15.0, 7.0, 4.0)
+
+COLUMNS = ("host", "date", "path", "frames", "sampled", "used", "hz", "width", "height",
+           "sep_pix", "thr_r11", "thr_r20", "scint", "status")
+
+DATE_RE = re.compile(r"(20\d\d)[-_]?(\d\d)[-_]?(\d\d)")
+
+
+def guess_date(path, root):
+    """Pull an observing date out of the path, since SER headers cannot be trusted for it."""
+    # at least one archived cube carries a dateobs of year 125 while its dateobs_utc is correct, so
+    # the path is the more reliable source
+    for part in reversed(path.relative_to(root).parts):
+        found = DATE_RE.search(part)
+        if found:
+            return "-".join(found.groups())
+    try:
+        stamp = load_ser_file(path)["dateobs_utc"]
+        return str(stamp)[:10]
+    except Exception:
+        return "unknown"
+
+
+def measure(path, target_frames):
+    """Measure one cube. Returns a dict of COLUMNS values minus host/date/path."""
+    cube = load_ser_file(path)
+    data = cube["data"]
+    times = cube["frame_times"].unix
+    nframes = len(data)
+    out = {"frames": nframes, "sampled": 0, "used": 0,
+           "hz": 1 / np.median(np.diff(times)) if nframes > 1 else np.nan,
+           "width": data.shape[2], "height": data.shape[1],
+           "sep_pix": np.nan, "thr_r11": np.nan, "thr_r20": np.nan, "scint": np.nan}
+
+    if nframes < 30:
+        # short cubes are the captures used to find the initial apertures, not measurements
+        out["status"] = "setup cube"
+        return out
+
+    step = max(1, nframes // target_frames)
+    index = np.arange(0, nframes, step)
+    out["sampled"] = len(index)
+
+    reference = data[:min(50, nframes)].mean(axis=0)
+    apertures = None
+    for threshold in THRESHOLDS:
+        try:
+            found, _ = find_apertures(reference, brightest=2, ap_size=11, threshold=threshold,
+                                      plot=False)
+            if len(found.positions) == 2:
+                apertures = found
+                break
+        except Exception:
+            continue
+    if apertures is None:
+        out["status"] = "no two spots"
+        return out
+
+    fluxes = {radius: [] for radius in RADII}
+    separations = []
+    for i in index:
+        frame = data[i].astype(np.float32)
+        frame = frame - np.median(frame)
+        result = dimm_calc(frame, apertures)
+        if result is None:
+            continue
+        apertures, distances, _ = result
+        if len(apertures.positions) != 2:
+            continue
+        separations.append(distances[0])
+        for radius in RADII:
+            stats = ApertureStats(frame, CircularAperture(apertures.positions, r=radius))
+            fluxes[radius].append(np.asarray(stats.sum, dtype=float))
+
+    out["used"] = len(separations)
+    if len(separations) < 30:
+        out["status"] = "too few usable frames"
+        return out
+    out["sep_pix"] = float(np.median(separations))
+
+    for radius, key in zip(RADII, ("thr_r11", "thr_r20")):
+        flux = np.array(fluxes[radius])
+        good = np.all(np.isfinite(flux), axis=1) & np.all(flux > 0, axis=1)
+        flux = flux[good]
+        if len(flux) < 30:
+            continue
+        # the prism aperture is the fainter one. Assign it once from the whole cube: picking the
+        # fainter per frame takes the minimum of two noisy numbers and biases the ratio low
+        faint, bright = np.argsort(np.median(flux, axis=0))[:2]
+        # ratio of the means, not the mean of the ratios — scintillation in the denominator inflates
+        # the latter badly, by a factor of two at the scatter these frames actually show
+        out[key] = float(flux[:, faint].mean() / flux[:, bright].mean())
+        if key == "thr_r11":
+            ratio = flux[:, faint] / flux[:, bright]
+            out["scint"] = float(ratio.var() / ratio.mean() ** 2)
+
+    out["status"] = "ok"
+    return out
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("root", type=Path, help="directory tree to search for .ser and .ser.gz")
+    parser.add_argument("--frames", type=int, default=400,
+                        help="frames to sample per cube (default: 400). A few hundred is plenty for "
+                             "a ratio of means and keeps the run short")
+    parser.add_argument("--host", default=platform.node().split(".")[0],
+                        help="label for this machine, carried in the output so pooled rows can be "
+                             "traced back")
+    args = parser.parse_args()
+
+    root = args.root.expanduser().resolve()
+    paths = sorted(p for p in root.rglob("*") if p.name.endswith((".ser", ".ser.gz")))
+    print("\t".join(COLUMNS), flush=True)
+
+    with tempfile.TemporaryDirectory(prefix="prism_throughput_") as scratch:
+        for path in paths:
+            work = None
+            try:
+                if path.suffix == ".gz":
+                    work = Path(scratch) / path.stem
+                    with gzip.open(path, "rb") as src, open(work, "wb") as dst:
+                        shutil.copyfileobj(src, dst, length=16 << 20)
+                    measured = measure(work, args.frames)
+                else:
+                    measured = measure(path, args.frames)
+            except Exception:
+                measured = {"status": "error"}
+                print(traceback.format_exc(), file=sys.stderr)
+            finally:
+                if work is not None and work.exists():
+                    work.unlink()
+
+            row = {"host": args.host, "date": guess_date(path, root),
+                   "path": str(path.relative_to(root))}
+            row.update(measured)
+            print("\t".join(
+                f"{row.get(name):.4f}" if isinstance(row.get(name), float) else str(row.get(name, ""))
+                for name in COLUMNS), flush=True)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
