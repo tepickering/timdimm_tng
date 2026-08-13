@@ -207,17 +207,36 @@ against a measured 0.685, which was recorded here as unexplained over-extrapolat
 series shows why. The throughput falls at **-0.304 per year over the first six months** and then at
 **-0.056 per year** over the following year. Fitting all twenty dates with an exponential settling
 onto a floor, weighted by the number of cubes per date, gives floor **0.691 ± 0.050**, amplitude
-0.202, time constant **7.9 ± 3.6 months**, rms residual 0.024. That form predicts **0.692** for
-August 2026 against a measured 0.685, where a single straight line through the same data predicts
-0.461 and fits worse (rms 0.032).
+0.202, time constant **7.9 ± 3.6 months**, rms residual 0.024. Over the SER data itself that beats a
+straight line, which fits worse (rms 0.032) and reaches 0.461 by August 2026.
 
-So the shape is a fast settling in the first months after installation onto a floor near 0.69, plus
-the slow residual drift of a few points a year that the single exposures measure independently as
--0.083 per year. The -0.114 per year quoted before was an average over a transient and a plateau and
-describes neither. The time constant is the least certain part — 7.9 ± 3.6 months, and it moved from
-4 to 8 months when five more dates arrived, because only the 2023-06 to 2023-12 gap constrains it.
+So the shape within the SER series is a fast settling in the first months after installation, and
+the -0.114 per year quoted before was an average over a transient and a plateau that describes
+neither. The time constant is the least certain part — 7.9 ± 3.6 months, and it moved from 4 to 8
+months when five more dates arrived, because only the 2023-06 to 2023-12 gap constrains it.
 Everything after that has settled: a further date added later moved the floor and the time constant
 by less than the last digit quoted.
+
+**But the floor is not confirmed, and it should not be read as one.** `scripts/plot_throughput`
+draws both datasets on one axis — output at `~/SAAO/timdimm_data/throughput_history.png` — and they
+*cross* rather than agree:
+
+| | Single exposures | SER settling floor | Difference |
+|---|---|---|---|
+| 2025 H1 | 0.780 | 0.691 | **+0.089** |
+| 2026 H2 | 0.682 | 0.691 | -0.009 |
+
+The settling fit predicts 0.692 for August 2026 against a measured 0.685, which looks like a
+striking confirmation and is not one. The SER series ends in December 2024, so its floor is pure
+extrapolation across the whole period the single exposures cover, and over that period the single
+exposures are still falling at -0.073 per year while the fitted floor is flat. The two lines happen
+to intersect in early 2026. Had the comparison been made a year earlier it would have shown a 0.09
+discrepancy, which is exactly the inter-method offset recorded below.
+
+The honest reading is that the exponential describes the 2023-2024 data better than a line does, and
+that the decline has certainly slowed from its initial -0.30 per year, but that no plateau has been
+demonstrated: throughput is still dropping at the end of the record. Whether it is settling onto a
+floor near 0.65 or continuing down is not answerable from this data.
 
 Three limits remain on how far this can be pushed:
 

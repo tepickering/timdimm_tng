@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+"""
+Plot the prism/clear throughput history: the SER cube survey alongside the single-exposure archive.
+
+Reads `throughput_pooled.ecsv` (from scripts/prism_throughput, pooled across machines) and
+`analyze_pictures.ecsv`, and writes throughput_history.png beside them.
+
+The point of drawing both on one axis is that they cross: the SER series ends in December 2024, so
+the settling floor is extrapolated across the whole period the single exposures cover, and over that
+period the single exposures are still falling. See docs/archive_notes.md.
+"""
+
+from pathlib import Path
+
+import matplotlib
+import numpy as np
+from astropy.table import Table
+from astropy.time import Time
+from scipy.optimize import curve_fit
+
+# this only ever writes a file, and the observing machines have no display
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402 -- must follow the backend selection above
+
+ROOT = Path.home() / "SAAO/timdimm_data"
+OUT = ROOT / "throughput_history.png"
+
+# ---- SER cube survey -------------------------------------------------------------------------
+u = Table.read(ROOT / "throughput_pooled.ecsv")
+good = (np.array([str(s).startswith("ok") for s in u["status"]]) & (u["used"] >= 150)
+        & (u["sep_pix"] > 5) & (u["scint"] < 5) & np.isfinite(u["thr_r11"])
+        & np.array([str(d) != "unknown" for d in u["date"]]))
+ser = u[good & (u["width"] <= 1000)]
+full = u[good & (u["width"] > 1000)]
+
+dates = sorted(set(str(d) for d in ser["date"]))
+sx = Time(dates).decimalyear
+sn = np.array([int(sum(str(z) == d for z in ser["date"])) for d in dates], float)
+sy = np.array([float(np.median(ser["thr_r11"][[str(z) == d for z in ser["date"]]])) for d in dates])
+# spread of the night, not of the mean: shows how much a single cube can miss by
+slo = np.array([float(np.percentile(ser["thr_r11"][[str(z) == d for z in ser["date"]]], 16))
+                for d in dates])
+shi = np.array([float(np.percentile(ser["thr_r11"][[str(z) == d for z in ser["date"]]], 84))
+                for d in dates])
+
+t0 = sx[0]
+p, cov = curve_fit(lambda t, c, a, tau: c + a * np.exp(-(t - t0) / tau), sx, sy,
+                   p0=[0.70, 0.25, 0.4], sigma=1 / np.sqrt(sn), maxfev=40000)
+perr = np.sqrt(np.diag(cov))
+
+# ---- single-exposure archive ------------------------------------------------------------------
+pic = Table.read(ROOT / "analyze_pictures.ecsv")
+night = np.array([str(d)[:10] for d in pic["date_obs"]])
+f0, f1 = np.asarray(pic["star0_flux"], float), np.asarray(pic["star1_flux"], float)
+usable = np.isfinite(f0) & np.isfinite(f1) & (f0 > 0) & (f1 > 0)
+
+px, py, pn = [], [], []
+for d in sorted(set(night)):
+    m = usable & (night == d)
+    if m.sum() < 30:
+        continue
+    a, b = np.median(f0[m]), np.median(f1[m])
+    # star0/star1 are x-sorted labels and the camera rotation swaps them, so identify the prism
+    # aperture per night by which is fainter rather than trusting the label
+    px.append(Time(d).decimalyear)
+    py.append(min(a, b) / max(a, b))
+    pn.append(int(m.sum()))
+px, py = np.array(px), np.array(py)
+
+# ---- plot ------------------------------------------------------------------------------------
+fig, ax = plt.subplots(figsize=(12, 6.5))
+
+ax.scatter(Time([str(d) for d in ser["date"]]).decimalyear, ser["thr_r11"], s=9, alpha=0.25,
+           color="#1f77b4", edgecolors="none", label="SER cubes, individual (n=%d)" % len(ser), zorder=2)
+ax.errorbar(sx, sy, yerr=[sy - slo, shi - sy], fmt="o", ms=7, color="#1f77b4", capsize=3, lw=1.2,
+            mec="white", mew=0.8, label="SER cubes, nightly median (16-84%)", zorder=4)
+
+ax.scatter(px, py, s=14, alpha=0.55, color="#d62728", edgecolors="none",
+           label="single exposures, nightly median (%d nights)" % len(px), zorder=3)
+
+ax.scatter(Time([str(d) for d in full["date"]]).decimalyear, full["thr_r11"], s=55, marker="x",
+           color="#7f7f7f", lw=1.6, label="full-frame cubes (saturated, excluded)", zorder=5)
+
+grid = np.linspace(sx.min(), 2026.75, 400)
+ax.plot(grid, p[0] + p[1] * np.exp(-(grid - t0) / p[2]), color="#2ca02c", lw=2.2, zorder=6,
+        label=r"settling fit: floor %.3f, $\tau$ = %.1f months" % (p[0], p[2] * 12))
+ax.axhline(p[0], color="#2ca02c", ls=":", lw=1.2, alpha=0.7, zorder=1)
+ax.fill_between(grid, p[0] - perr[0], p[0] + perr[0], color="#2ca02c", alpha=0.10, zorder=0)
+
+lin = np.polyfit(sx, sy, 1)
+ax.plot(grid, np.polyval(lin, grid), color="#9467bd", ls="--", lw=1.4, alpha=0.8, zorder=5,
+        label="straight line through the same data (%.3f/yr)" % lin[0])
+
+# the single exposures keep declining where the settling fit is flat: they cross the floor rather
+# than landing on it, so the agreement at the right-hand edge is a crossing, not a confirmation
+plin = np.polyfit(px, py, 1)
+pgrid = np.linspace(px.min(), px.max(), 100)
+ax.plot(pgrid, np.polyval(plin, pgrid), color="#d62728", lw=2.0, zorder=6,
+        label="single-exposure trend (%.3f/yr)" % plin[0])
+
+for when, what in (("2025-10-30", "camera reconfig"), ("2026-02-19", "USB cable, camera rotated"),
+                   ("2026-04-09", "reassembled after mount failure")):
+    x = Time(when).decimalyear
+    ax.axvline(x, color="k", lw=0.8, ls="-", alpha=0.25, zorder=1)
+    ax.text(x, 0.985, " " + what, rotation=90, va="top", ha="left", fontsize=7.5, alpha=0.65)
+
+ax.set_xlabel("year")
+ax.set_ylabel("throughput, prism aperture / clear aperture")
+ax.set_title("timDIMM prism throughput since the ASI432MM was commissioned\n"
+             "the two datasets cross rather than agree: the settling floor is an extrapolation "
+             "past the last SER cube (Dec 2024)", fontsize=11)
+ax.set_ylim(0.35, 1.02)
+ax.set_xlim(2023.35, 2026.8)
+ax.grid(alpha=0.25, lw=0.6)
+ax.legend(loc="lower left", fontsize=8.5, framealpha=0.93)
+
+fig.tight_layout()
+fig.savefig(OUT, dpi=140)
+print("wrote", OUT)
+print(f"settling fit: floor {p[0]:.3f}+-{perr[0]:.3f}, tau {p[2]*12:.1f} months")
+print(f"single exposures: {len(px)} nights, {py.min():.3f} to {py.max():.3f}")
+print(f"at 2026.6 -- fit {p[0]+p[1]*np.exp(-(2026.6-t0)/p[2]):.3f}, "
+      f"line {np.polyval(lin, 2026.6):.3f}")
