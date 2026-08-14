@@ -1,0 +1,17 @@
+version: 2
+
+updates:
+  # Only the actions are pinned to a version in this repository, so they are the only thing that
+  # can silently go stale. The Python dependencies in pyproject.toml carry no version constraints
+  # and there is no lockfile, so a pip updater would have nothing to bump.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # checkout and setup-python cut a major roughly once a year each; one PR for both is plenty
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ci
