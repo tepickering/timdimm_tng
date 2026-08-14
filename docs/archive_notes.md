@@ -256,6 +256,34 @@ confirm is itself below the noise. What survives is simple and worth keeping:
 Anything more specific — a floor value, a time constant, whether the curve is settling or straight —
 is not supported by 20 SER nights and single-exposure nights that scatter by 0.082.
 
+**The scatter is a sampling problem, and it has a known fix.** A single exposure is a 1 ms sample,
+and they are taken roughly twice a minute, so a night's median rests on a few hundred samples spread
+over hours — with scintillation, not throughput, setting the spread. A SER cube gets ~4500 samples
+in 15 seconds. Extracting the flux ratio routinely from the cubes as seeing measurements are taken
+would deliver on the order of **9000 samples a minute against the present 2**, which is why the SER
+nightly medians already have visibly tighter error bars off 20 nights than the single exposures
+manage off 321. The limit above is not one of instrument stability; it is one of how the archive was
+sampled. See the `scintillation.csv` work for the mechanism.
+
+### What is in the tails
+
+**The high side is partly saturation.** The ASI432MM writes 12-bit data left-shifted into uint16, so
+full scale is 65520, and on 103 of the 321 nights more than 20% of frames have the clear spot above
+90% of it. Clipping the bright aperture and not the faint one pushes the ratio toward unity. Nights
+in the 20-50% saturated band sit **+0.037** above the trend. Dropping every night with more than 5%
+saturated frames tightens the residual rms from 0.082 to 0.072 and steepens the slope slightly, to
+-0.084 per year. It is not the whole story — the most heavily saturated band is not the most biased,
+so this is a contributor rather than an explanation — but any future cut should exclude saturated
+nights. The most extreme high nights cluster in Aug-Oct 2025 and at the 2026-02-19 rotation.
+
+**The low side is not seasonal.** If borderline humidity drives the low tail, it does not show up in
+the calendar: month explains **none** of the variance in the residuals, and the wet months are not
+displaced from the dry ones. That is weak evidence, since humidity is a property of a night rather
+than of a month, and the archive carries no weather columns to test it against directly. Joining
+these nights to the SALT and SAAO weather archives through `timdimm_tng.wx` would settle it, and is
+the natural next question. Note that the deepest low nights in Feb 2025 all sit at separation 66 px,
+a configuration used on no other dates.
+
 Three limits remain on how far this can be pushed:
 
 **Full-frame cubes have to be excluded.** The eight 1608x1104 cubes read high and disagree between

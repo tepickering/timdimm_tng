@@ -25,6 +25,9 @@ import matplotlib.pyplot as plt  # noqa: E402 -- must follow the backend selecti
 
 ROOT = Path.home() / "SAAO/timdimm_data"
 OUT = ROOT / "throughput_history.png"
+# the data lives outside the repo, but the figure is what docs/archive_notes.md argues from, so a
+# copy is kept beside the notes
+DOCS = Path(__file__).resolve().parent.parent / "docs" / "throughput_history.png"
 
 # ---- SER cube survey -------------------------------------------------------------------------
 u = Table.read(ROOT / "throughput_pooled.ecsv")
@@ -76,10 +79,10 @@ for d in sorted(set(night)):
 px, py, plo, phi, psem = (np.array(v) for v in (px, py, plo, phi, psem))
 
 # ---- plot ------------------------------------------------------------------------------------
-# the frame-to-frame spread is ~20x the standard error on a nightly median, so drawing it on the
-# trend axis just floods it. It gets its own strip underneath instead.
-fig, (ax, axs) = plt.subplots(2, 1, figsize=(12, 7.6), sharex=True,
-                              gridspec_kw={"height_ratios": [3.4, 1], "hspace": 0.06})
+# the frame-to-frame spread within a night is ~0.37, twenty times the standard error on the nightly
+# median, so it is deliberately not drawn: it floods the axis and says nothing about the trend. The
+# numbers are printed at the end instead.
+fig, ax = plt.subplots(figsize=(12, 6.5))
 
 ax.scatter(Time([str(d) for d in ser["date"]]).decimalyear, ser["thr_r11"], s=9, alpha=0.25,
            color="#1f77b4", edgecolors="none", label="SER cubes, individual (n=%d)" % len(ser), zorder=2)
@@ -113,30 +116,13 @@ ax.plot(grid, p[0] + p[1] * np.exp(-(grid - t0) / p[2]), color="#2ca02c", ls="--
         alpha=0.65, zorder=5,
         label="settling curve (fits SER by only %.3f rms better; not resolvable)" % gain)
 
-# the scatter strip: why a single frame is worthless and a nightly median is not. The frame-to-frame
-# half-width is ~0.37, so individual frames routinely put the prism aperture above the clear one;
-# the standard error on the median of a few hundred of them is ~0.017.
-axs.plot(px, (phi - plo) / 2, ".", ms=3.5, color="#d62728", alpha=0.55,
-         label="frame-to-frame 16-84%% half-width (median %.2f)" % np.median((phi - plo) / 2))
-axs.plot(px, psem, ".", ms=3.5, color="#7f2020", alpha=0.8,
-         label="s.e. on the nightly median (median %.3f)" % np.median(psem))
-axs.axhline(np.std(py - np.polyval(np.polyfit(px, py, 1), px)), color="k", ls="--", lw=1.1,
-            alpha=0.7, label="scatter of nightly medians about the trend (%.3f)"
-            % np.std(py - np.polyval(np.polyfit(px, py, 1), px)))
-axs.set_yscale("log")
-axs.set_ylim(0.004, 1.5)
-axs.set_ylabel("spread", fontsize=9)
-axs.grid(alpha=0.25, lw=0.6)
-axs.legend(loc="upper left", fontsize=7.5, ncol=3, framealpha=0.93)
-
 for when, what in (("2025-10-30", "camera reconfig"), ("2026-02-19", "USB cable, camera rotated"),
                    ("2026-04-09", "reassembled after mount failure")):
     x = Time(when).decimalyear
-    for a in (ax, axs):
-        a.axvline(x, color="k", lw=0.8, ls="-", alpha=0.25, zorder=1)
+    ax.axvline(x, color="k", lw=0.8, ls="-", alpha=0.25, zorder=1)
     ax.text(x, 1.045, " " + what, rotation=90, va="top", ha="left", fontsize=7.5, alpha=0.65)
 
-axs.set_xlabel("year")
+ax.set_xlabel("year")
 ax.set_ylabel("throughput, prism aperture / clear aperture")
 ax.set_title("timDIMM prism throughput since the ASI432MM was commissioned\n"
              "night-to-night scatter swamps any curvature: a single linear decline is as much as "
@@ -146,10 +132,10 @@ ax.set_xlim(2023.35, 2026.8)
 ax.grid(alpha=0.25, lw=0.6)
 ax.legend(loc="lower left", fontsize=8.5, framealpha=0.93)
 
-# tight_layout would fight the explicit hspace between the two panels
-fig.subplots_adjust(left=0.07, right=0.985, top=0.91, bottom=0.075)
+fig.tight_layout()
 fig.savefig(OUT, dpi=140)
-print("wrote", OUT)
+fig.savefig(DOCS, dpi=140)
+print("wrote", OUT, "and", DOCS)
 print(f"single line, both datasets: {alin[0]:+.4f}+-{ase:.4f}/yr, residual rms {ares.std():.4f}")
 plin = np.polyfit(px, py, 1)
 print(f"single exposures alone: {plin[0]:+.4f}/yr over {len(px)} nights, "
