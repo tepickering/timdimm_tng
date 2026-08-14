@@ -12,7 +12,8 @@ import astropy.units as u
 
 
 TIMDIMM_DATA_DIR = importlib.resources.files(__name__) / "data"
-TEMPLATES =  importlib.resources.files(__name__) / "templates"
+TEMPLATES = importlib.resources.files(__name__) / "templates"
+
 
 class ScheduleBase(UserDict):
     """
@@ -22,7 +23,7 @@ class ScheduleBase(UserDict):
 
     def from_json(
         self,
-        filename= TEMPLATES / "timdimm_sequence_template.json"
+        filename=TEMPLATES / "timdimm_sequence_template.json"
     ):
         """
         Instantiate from a JSON file
@@ -42,7 +43,7 @@ class ScheduleBase(UserDict):
         Convert internal dict to XML and write to file
         """
         with open(filename, "w") as fp:
-            fp.write(xmltodict.unparse(self.data, pretty=True, indent="    " ))
+            fp.write(xmltodict.unparse(self.data, pretty=True, indent="    "))
 
     def to_json(self, filename="sequence.json"):
         """
@@ -166,7 +167,7 @@ def make_hdimm_schedule(outfile="hdimm_schedule.esl"):
     sched = Schedule(
         template=TEMPLATES / "hdimm_schedule_template.esl",
     )
-    stars = Table.read(TIMDIMM_DATA_DIR /  "star_list_full.ecsv")
+    stars = Table.read(TIMDIMM_DATA_DIR / "star_list_full.ecsv")
 
     # looks like Ekos only used the order of the schedule and doesn't factor in priority.
     # so we sort by brightness so it'll always stick with the brightest star available.

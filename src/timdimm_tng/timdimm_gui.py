@@ -4,6 +4,7 @@ import tkinter as tk
 import os
 import time
 
+
 def run(program, *args):
     pid = os.fork()
     if not pid:
@@ -89,5 +90,3 @@ def main():
     quit.pack(pady=20, padx=10, fill=tk.BOTH)
 
     root.mainloop()
-
-

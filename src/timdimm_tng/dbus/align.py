@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import List
 
 from sdbus import DbusInterfaceCommon, dbus_method, dbus_property
 

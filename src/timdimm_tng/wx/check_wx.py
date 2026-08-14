@@ -3,7 +3,7 @@
 import astropy.units as u
 from astropy.time import Time
 
-#from timdimm_tng.wx.lcogt_weather import get_weather as lcogt_wx
+# from timdimm_tng.wx.lcogt_weather import get_weather as lcogt_wx
 # from timdimm_tng.wx.lcogt_bwc2_weather import get_weather as lcogt_bwc2_wx
 # from timdimm_tng.wx.gfz_weather import get_weather as gfz_wx
 # from timdimm_tng.wx.monet_weather import parse_monet as monet_wx
@@ -31,7 +31,7 @@ def get_current_conditions():
     wx_dict = {}
     try:
         wx_dict["SAAO-IO"] = saao_io_wx()
-    except Exception as e:
+    except Exception:
         wx_dict["SAAO-IO"] = {"Valid": False}
 
     if wx_dict["SAAO-IO"]["Valid"]:
@@ -52,7 +52,7 @@ def get_current_conditions():
     # get the current weather conditions from the SALT weather station
     try:
         wx_dict["SALT"] = salt_wx()
-    except Exception as e:
+    except Exception:
         wx_dict["SALT"] = {"Valid": False}
 
     return wx_dict, checks

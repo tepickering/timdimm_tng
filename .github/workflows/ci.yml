@@ -17,7 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
+        # 3.14 is what runs in production; 3.13 is the floor still worth keeping green
+        python-version: ["3.13", "3.14"]
 
     env:
       # the runners are headless, and importing pyplot without this picks a GUI backend
@@ -48,3 +49,22 @@ jobs:
       - name: Run tests
         # the archived-data tests skip themselves when ~/SAAO/timdimm_data is absent, which it is here
         run: pytest -v --color=yes
+
+  codestyle:
+    name: flake8
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install flake8
+        run: python -m pip install flake8
+
+      # the package only; scripts/ still carries a backlog of violations and is linted separately
+      # once it is cleaned up. Line length matches the ruff and flake8 settings in pyproject.toml.
+      - name: Lint
+        run: flake8 src/timdimm_tng --count --max-line-length=132

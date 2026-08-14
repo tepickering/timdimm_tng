@@ -237,7 +237,7 @@ def hdimm_calc(data, aps):
             d_base1 = np.sqrt(np.dot(base1.T, base1))
             d_base2 = np.sqrt(np.dot(base2.T, base2))
             d_base3 = np.sqrt(np.dot(base3.T, base3))
-        except Exception as _:
+        except Exception:
             return None
 
     if not np.isfinite(ap_pos).all() or len(ap_pos) != 3 or np.any(ap_stats.sum < 0):
@@ -268,7 +268,7 @@ def dimm_calc(data, aps):
             new_aps, _ = find_apertures(data, brightest=2, threshold=7, ap_size=aps.r, plot=False)
             ap_stats = ApertureStats(data, new_aps)
             ap_pos = ap_stats.centroid
-        except Exception as _:
+        except Exception:
             return None
 
     if not np.isfinite(ap_pos).all() or len(ap_pos) != 2 or np.any(ap_stats.sum < 0):
