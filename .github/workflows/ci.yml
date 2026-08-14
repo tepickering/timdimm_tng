@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    env:
+      # the runners are headless, and importing pyplot without this picks a GUI backend
+      MPLBACKEND: Agg
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # setuptools_scm derives the version from tags, so the full history has to be here
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Show versions
+        run: |
+          python -c "from timdimm_tng.version import version; print('timdimm_tng', version)"
+          python -c "import astropy, numpy, photutils, skimage, scipy; print('astropy', astropy.__version__, '| numpy', numpy.__version__, '| photutils', photutils.__version__, '| skimage', skimage.__version__, '| scipy', scipy.__version__)"
+
+      - name: Run tests
+        # the archived-data tests skip themselves when ~/SAAO/timdimm_data is absent, which it is here
+        run: pytest -v --color=yes
