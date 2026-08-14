@@ -201,7 +201,10 @@ archive, so a cube taken after midnight SAST lands on the following date — whi
 appears above for a cube whose filename says `2024-05-05T01:57+02:00`. Consistent between the two
 datasets and irrelevant to epoch comparisons, but wrong if whole observing nights are ever wanted.
 
-**The decline is not linear, and that is the main thing the extra dates buy.** With only three
+**The decline steepens towards the start of the record** — though see the caveat below, which is
+that none of the curvature in this section survives contact with the night-to-night scatter, and
+the fitted parameters should be read as descriptions of these 20 nights rather than as
+measurements of the instrument. With only three
 points after commissioning the earlier fit gave -0.114 per year and predicted 0.524 for August 2026
 against a measured 0.685, which was recorded here as unexplained over-extrapolation. The denser
 series shows why. The throughput falls at **-0.304 per year over the first six months** and then at
@@ -210,33 +213,48 @@ onto a floor, weighted by the number of cubes per date, gives floor **0.691 ± 0
 0.202, time constant **7.9 ± 3.6 months**, rms residual 0.024. Over the SER data itself that beats a
 straight line, which fits worse (rms 0.032) and reaches 0.461 by August 2026.
 
-So the shape within the SER series is a fast settling in the first months after installation, and
-the -0.114 per year quoted before was an average over a transient and a plateau that describes
-neither. The time constant is the least certain part — 7.9 ± 3.6 months, and it moved from 4 to 8
-months when five more dates arrived, because only the 2023-06 to 2023-12 gap constrains it.
-Everything after that has settled: a further date added later moved the floor and the time constant
-by less than the last digit quoted.
+So the shape within the SER series is a fast early drop and a slower one after, and the -0.114 per
+year quoted before was an average over both that describes neither. The time constant is the least
+certain part — 7.9 ± 3.6 months, and it moved from 4 to 8 months when five more dates arrived,
+because only the 2023-06 to 2023-12 gap constrains it. That instability is the first hint of the
+problem the next section makes explicit.
 
-**But the floor is not confirmed, and it should not be read as one.** `scripts/plot_throughput`
-draws both datasets on one axis — output at `~/SAAO/timdimm_data/throughput_history.png` — and they
-*cross* rather than agree:
+**But the floor is not confirmed, and the curvature above is over-read.** `scripts/plot_throughput`
+draws both datasets on one axis — output at `~/SAAO/timdimm_data/throughput_history.png` — and once
+the single-exposure nights carry error bars the case for anything beyond a straight line collapses.
 
-| | Single exposures | SER settling floor | Difference |
-|---|---|---|---|
-| 2025 H1 | 0.780 | 0.691 | **+0.089** |
-| 2026 H2 | 0.682 | 0.691 | -0.009 |
+Three spreads matter, and they differ by more than an order of magnitude each:
 
-The settling fit predicts 0.692 for August 2026 against a measured 0.685, which looks like a
-striking confirmation and is not one. The SER series ends in December 2024, so its floor is pure
-extrapolation across the whole period the single exposures cover, and over that period the single
-exposures are still falling at -0.073 per year while the fitted floor is flat. The two lines happen
-to intersect in early 2026. Had the comparison been made a year earlier it would have shown a 0.09
-discrepancy, which is exactly the inter-method offset recorded below.
+| Spread | Size | What it is |
+|---|---|---|
+| Frame to frame within a night (16-84% half-width) | **0.37** | scintillation plus single-frame photometry noise; individual frames routinely put the prism aperture *above* the clear one |
+| Standard error on a nightly median | **0.017** | how well one night is pinned down, from a few hundred frames |
+| Nightly medians about the trend | **0.082** | real night-to-night variation — condensation, focus, transparency |
 
-The honest reading is that the exponential describes the 2023-2024 data better than a line does, and
-that the decline has certainly slowed from its initial -0.30 per year, but that no plateau has been
-demonstrated: throughput is still dropping at the end of the record. Whether it is settling onto a
-floor near 0.65 or continuing down is not answerable from this data.
+The last is five times the second, so the night-to-night scatter is physical rather than measurement
+noise. It is also **ten times the 0.008 rms by which the exponential beats a straight line** on the
+SER nightly medians. That margin is not resolvable. The exponential is not wrong, but it is not
+required, and its floor and time constant should not be quoted as measurements.
+
+A single straight line through all 341 nightly medians from both datasets gives **-0.058 ± 0.007 per
+year** with residual rms 0.082 — identical to the night-to-night scatter, meaning the line already
+explains everything except that scatter. Fitted separately the two datasets give -0.129 per year
+(SER, 20 nights, all in the first 18 months) and **-0.078 ± 0.010** per year (single exposures, 321
+nights). The SER slope is steeper because that series lives entirely in the early, steepest stretch,
+which is the same fact the two-segment split above describes, without needing a break point.
+
+So the earlier reading — that the settling fit was independently confirmed by the single exposures —
+was wrong twice over. The two curves *cross* rather than agree (single exposures sit +0.089 above
+the extrapolated floor in 2025 H1 and -0.009 in 2026 H2), and the curvature they were being used to
+confirm is itself below the noise. What survives is simple and worth keeping:
+
+- Throughput is **clearly declining**, at roughly **-0.06 to -0.08 per year**, and that slope is
+  significant at about 8 sigma.
+- The decline was **faster in the first months** after installation than it has been since.
+- **No plateau has been demonstrated.** Throughput is still dropping at the end of the record.
+
+Anything more specific — a floor value, a time constant, whether the curve is settling or straight —
+is not supported by 20 SER nights and single-exposure nights that scatter by 0.082.
 
 Three limits remain on how far this can be pushed:
 
