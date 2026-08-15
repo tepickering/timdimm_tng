@@ -18,8 +18,8 @@ SPOT_X = (15, 45)
 SPOT_Y = 30
 
 
-def dimm_frames(nframes, bad=(), rng=None):
-    """A cube of two Gaussian spots. Frames listed in ``bad`` are flat, so centroiding fails."""
+def dimm_frames(nframes, bad=(), rng=None, spot_x=SPOT_X):
+    """A cube of Gaussian spots. Frames listed in ``bad`` are flat, so centroiding fails."""
     rng = rng or np.random.default_rng(0)
     y, x = np.mgrid[:SIZE, :SIZE]
     frames = np.zeros((nframes, SIZE, SIZE))
@@ -28,7 +28,7 @@ def dimm_frames(nframes, bad=(), rng=None):
             frames[i] = 500.0  # a flat frame has no sources at all
             continue
         frame = np.full((SIZE, SIZE), 100.0)
-        for cx in SPOT_X:
+        for cx in spot_x:
             jitter = rng.normal(scale=0.3, size=2)
             frame += 3000.0 * np.exp(
                 -((x - cx - jitter[0]) ** 2 + (y - SPOT_Y - jitter[1]) ** 2) / (2 * 2.0**2)
@@ -68,6 +68,46 @@ def test_frame_index_is_integer_typed(tmp_path):
 
     assert np.issubdtype(results["frame_index"].dtype, np.integer)
     assert results["frame_times"][results["frame_index"]].isot[0].startswith("2024-05-05")
+
+
+def test_a_one_star_cube_fails_instead_of_reporting_zero_seeing(tmp_path):
+    """
+    A DIMM measurement needs two apertures. When only one is found, dimm_calc used to fall back to
+    per-frame detection, come back with two coincident centroids, and produce a baseline of exactly
+    zero -- so the cube reported 0.00 arcsec as a normal result. seeing.csv holds 357 such rows,
+    because postcapture's quality gate is `seeing < 10.0` and zero passes it.
+    """
+    path = write_ser(tmp_path / "onestar.ser", frames=dimm_frames(20, spot_x=(30,)))
+
+    with pytest.raises(ValueError, match="2 apertures"):
+        analyze_dimm_cube(path)
+
+
+def test_a_zero_length_baseline_is_a_bad_frame(tmp_path):
+    """
+    Defence in depth for the same bug, one layer down. Two apertures at the same place are not a
+    measurement no matter how they were arrived at, so the frame must be rejected rather than
+    contribute a zero to the baseline series the seeing is computed from.
+    """
+    from photutils.aperture import CircularAperture
+
+    from timdimm_tng.analyze_cube import dimm_calc
+
+    frame = dimm_frames(1)[0].astype(float)
+    coincident = CircularAperture([(15.0, 30.0), (15.0, 30.0)], r=11)
+
+    assert dimm_calc(frame, coincident) is None
+
+
+def test_a_starless_cube_says_so_rather_than_leaking_a_photutils_error(tmp_path):
+    """
+    Six archived cubes fail with `TypeError: segmentation_image must be a SegmentationImage`, which
+    is SourceFinder returning None for a faint target leaking through two call frames.
+    """
+    path = write_ser(tmp_path / "blank.ser", frames=dimm_frames(20, bad=range(20)))
+
+    with pytest.raises(ValueError, match="[Nn]o sources"):
+        analyze_dimm_cube(path)
 
 
 def test_the_results_dict_feeds_scintillation_stats(tmp_path):

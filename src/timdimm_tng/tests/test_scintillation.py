@@ -140,6 +140,44 @@ def test_the_index_is_nan_when_the_mean_ratio_is_not_positive():
     assert np.isnan(scint_index(np.zeros(500)))
 
 
+def scintillating_ratio(n=20000, scatter=0.3, seed=30):
+    """A clean flux ratio: lognormal about 0.75, no dropouts."""
+    rng = np.random.default_rng(seed)
+    sigma = np.sqrt(np.log(1.0 + scatter**2))
+    return 0.75 * rng.lognormal(mean=-0.5 * sigma**2, sigma=sigma, size=n)
+
+
+def test_a_few_dropout_frames_do_not_take_over_the_index():
+    """
+    Measured on indi_2023-12-08@20-53-44: the bright aperture drops to 7 ADU against a median of
+    17357 in a handful of frames, the per-frame ratio reaches 3049, and the plain normalised
+    variance comes out 498 -- an index above 1 already means the scatter exceeds the mean, so 498
+    is not a seeing statistic. The frames where the star nearly vanished are not scintillation
+    samples, and a robust scale has to keep them from setting the answer.
+    """
+    ratio = scintillating_ratio()
+    clean = scint_index(ratio)
+
+    spiked = ratio.copy()
+    rng = np.random.default_rng(31)
+    hit = rng.choice(len(spiked), size=len(spiked) // 100, replace=False)
+    spiked[hit] *= rng.uniform(50, 3000, size=hit.size)   # denominator nearly vanished
+
+    assert clean == pytest.approx(0.09, rel=0.15), "sanity: 30% scatter gives an index near 0.09"
+    assert scint_index(spiked) == pytest.approx(clean, rel=0.15)
+
+
+def test_the_index_reports_what_fraction_it_rejected():
+    ratio = scintillating_ratio()
+    spiked = ratio.copy()
+    rng = np.random.default_rng(32)
+    hit = rng.choice(len(spiked), size=len(spiked) // 100, replace=False)
+    spiked[hit] *= rng.uniform(50, 3000, size=hit.size)
+
+    assert scint_index(ratio, return_clipped=True)[1] < 0.01
+    assert scint_index(spiked, return_clipped=True)[1] == pytest.approx(0.01, abs=0.005)
+
+
 def ar1(n, rho, rng):
     """A first-order autoregressive series: corr at lag k is rho**k, unit variance."""
     x = np.zeros(n)
@@ -317,7 +355,22 @@ def test_stats_has_exactly_the_expected_keys():
     assert set(stats) == {
         "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "tau_scint_censored",
         "acf1_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright", "mean_flux_faint",
+        "frac_clipped",
     }
+
+
+def test_dropout_frames_are_reported_not_just_removed():
+    """A cube whose star kept vanishing should say so, not quietly return a tidy index."""
+    results = fake_results()
+    fluxes = [f.copy() for f in results["aperture_fluxes"]]
+    for i in range(0, len(fluxes), 100):
+        fluxes[i][0] = 5.0           # bright aperture nearly vanishes for one frame
+    results["aperture_fluxes"] = fluxes
+
+    stats = scintillation_stats(results)
+
+    assert stats["frac_clipped"] == pytest.approx(0.01, abs=0.006)
+    assert stats["scint_index_raw"] < 1.0, "the dropouts must not run away with the index"
 
 
 def test_stats_recovers_throughput_and_cadence():

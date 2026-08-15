@@ -110,7 +110,13 @@ try:
 except Exception as e:
     log.error(f"Scintillation analysis failed: {e}")
 
-if np.isfinite(seeing_data['seeing'].value) and seeing_data['seeing'].value < 10.0:
+# The lower bound matters as much as the upper one. A degenerate cube used to yield a baseline of
+# exactly zero and so a seeing of exactly 0.00, which passed `< 10.0` and was written as real data:
+# seeing.csv holds 357 such rows between 2024-10 and 2026-07. analyze_dimm_cube now refuses those
+# cubes outright, but nothing downstream should accept a sub-arcsecond-floor seeing regardless.
+MIN_SEEING = 0.1  # arcsec; the site has never delivered better than ~0.5
+
+if np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
     if seeing_data['N_bad'] < 50:
         csv_file = Path.home() / "seeing.csv"

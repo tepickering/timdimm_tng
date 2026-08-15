@@ -168,13 +168,16 @@ def find_apertures(
     convolved_data = astropy.convolution.convolve(data, kernel)
     finder = SourceFinder(n_pixels=15, deblend=deblend, progress_bar=False)
     segment_map = finder(convolved_data, threshold)
+    if segment_map is None:
+        # SourceFinder returns None rather than an empty map when nothing is above threshold.
+        # Passing that to SourceCatalog raises "segmentation_image must be a SegmentationImage",
+        # which is what six archived cubes of faint targets fail with.
+        raise ValueError(f"No sources detected in image at threshold {threshold:.1f}")
+
     t = SourceCatalog(data, segment_map, convolved_data=convolved_data).to_table()
     t.sort("max_value")
     stars = t[-brightest:]
     stars.sort("x_centroid")
-
-    if stars is None:
-        raise Exception("No stars detected in image")
 
     positions = list(zip(stars["x_centroid"], stars["y_centroid"]))
     apertures = CircularAperture(positions, r=ap_size)
@@ -277,6 +280,14 @@ def dimm_calc(data, aps):
 
     baseline = ap_pos[1] - ap_pos[0]
     dist_baseline = np.sqrt(np.dot(baseline.T, baseline))
+
+    # Two centroids closer together than half an aperture are the same star found twice, not a
+    # baseline. Letting them through produces a baseline of zero, and a cube full of those reports
+    # a seeing of exactly 0.00 arcsec -- which passes the `seeing < 10.0` quality gate downstream.
+    # hdimm_calc calls the same condition "overlapped".
+    if not np.isfinite(dist_baseline) or dist_baseline < 0.5 * aps.r:
+        return None
+
     return new_aps, [dist_baseline], ap_stats.sum
 
 
@@ -323,6 +334,14 @@ def analyze_dimm_cube(
         ap_size=ap_size,
         plot=plot,
     )
+
+    # find_apertures returns however many sources it found, up to `brightest`. Carrying on with too
+    # few of them is how a cube with one visible star came to report a seeing of exactly 0.00.
+    if len(apertures.positions) != napertures:
+        raise ValueError(
+            f"Expected {napertures} apertures, found {len(apertures.positions)}. "
+            "The target may be too faint, or one aperture obscured."
+        )
 
     baselines = []
     positions = []
