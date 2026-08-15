@@ -110,6 +110,22 @@ two things the spec must require: **correlate by frame lag with dropouts left as
 position in a compacted array, and **record how many frames survived**, since a time constant from
 a decimated series is not a measurement.
 
+## How precise is a single cube's image-motion tau
+
+Measured during implementation, on synthetic series with a known input tau, through the same
+estimator the pipeline now uses. At 4000 frames — a real 299 Hz cube is about 4400 — the fit is
+**unbiased but noisy: 4.98 ms recovered from an input of 5.00, with a scatter of 0.59 ms** over 15
+realisations. That is about 12%.
+
+The scatter comes from the fit's dependence on the lag-4 correlation, which is only about 0.07 at
+this tau. Taking the log of a small correlation amplifies its sampling noise, so the highest lag
+used carries most of the error. It is still worth including — dropping to lags 1–3 costs more in fit
+leverage than it saves in noise — but it sets the floor on what one cube can say.
+
+**Consequence for interpreting the logged column:** night-to-night changes in `tau_motion_ms`
+smaller than roughly 0.6 ms are not measurements. Averaging over a night's cubes tightens it as
+usual; a single cube does not resolve a 10% change.
+
 ## A cross-check worth noting
 
 The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from
