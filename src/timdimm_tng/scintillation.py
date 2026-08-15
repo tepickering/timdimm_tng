@@ -137,3 +137,55 @@ def lag_autocorr(x, index, lag):
         return float("nan"), npairs
 
     return float(np.corrcoef(a[ok], b[ok])[0, 1]), npairs
+
+
+#: Lags used for the time-constant fit. Four is the most the measured decay supports before the
+#: correlation reaches the noise floor: 0.63 / 0.28 / 0.13 on a real 299 Hz cube.
+FIT_LAGS = (1, 2, 3, 4)
+
+
+def fit_tau(x, index, dt, lags=FIT_LAGS):
+    """
+    Time constant from a log-linear fit to the lag autocorrelation, in seconds.
+
+    A fit rather than a 1/e crossing read off the curve, because at 299 Hz the measured image-motion
+    tau of 4-6 ms is only 1.2-1.7 samples long and the crossing lands between two samples.
+
+    Lags are used in order and the loop stops at the first unusable one -- once the correlation has
+    reached the noise floor, higher lags only flatten the fit.
+
+    Returns NaN if fewer than two lags are usable or the fitted slope is not negative, which is what
+    a series with no resolvable decay looks like.
+    """
+    times, logs = [], []
+    for lag in lags:
+        rho, npairs = lag_autocorr(x, index, lag)
+        if npairs < MIN_PAIRS or not np.isfinite(rho) or rho <= 0:
+            break
+        times.append(lag * dt)
+        logs.append(np.log(rho))
+
+    if len(times) < 2:
+        return float("nan")
+
+    slope = np.polyfit(times, logs, 1)[0]
+    if slope >= 0:
+        return float("nan")
+    return float(-1.0 / slope)
+
+
+def median_dt(frame_times):
+    """
+    Median interval between frames, in seconds.
+
+    Measured from the timestamps rather than assumed from the nominal frame rate. Cadence jitter is
+    only 0.15-0.21 ms at 299 Hz, but the archive spans 10.5, 43.7, 120 and 299 Hz configurations, so
+    a time constant logged without its real cadence is not interpretable.
+    """
+    if len(frame_times) < 2:
+        return float("nan")
+    intervals = np.diff(frame_times.unix)
+    intervals = intervals[np.isfinite(intervals) & (intervals > 0)]
+    if intervals.size == 0:
+        return float("nan")
+    return float(np.median(intervals))

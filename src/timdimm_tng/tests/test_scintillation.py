@@ -7,10 +7,20 @@ per-frame ratios instead of the ratio of means, and correlating by position in t
 instead of by cube frame index.
 """
 
+import astropy.units as u
 import numpy as np
 import pytest
+from astropy.time import Time
 
-from timdimm_tng.scintillation import assign_apertures, flux_ratio, lag_autocorr, scint_index, throughput
+from timdimm_tng.scintillation import (
+    assign_apertures,
+    fit_tau,
+    flux_ratio,
+    lag_autocorr,
+    median_dt,
+    scint_index,
+    throughput,
+)
 
 
 def two_identical_apertures(scatter, n=200000, seed=0):
@@ -205,3 +215,70 @@ def test_too_few_pairs_gives_nan_but_still_reports_the_count():
 
     assert np.isnan(rho)
     assert npairs == 2
+
+
+DT = 3.342e-3  # the 299 Hz cadence, in seconds
+
+
+def test_fit_recovers_a_known_time_constant():
+    """rho at lag 1 is exp(-dt/tau), so a tau of 5 ms at 299 Hz gives rho = 0.513."""
+    tau = 5.0e-3
+    rng = np.random.default_rng(9)
+    x = ar1(40000, np.exp(-DT / tau), rng)
+
+    assert fit_tau(x, np.arange(40000), DT) == pytest.approx(tau, rel=0.05)
+
+
+def test_fit_recovers_the_same_tau_from_a_punctured_series():
+    """
+    The test that proves the gaps are handled. Same underlying process, 20% of frames deleted --
+    the answer must not move.
+    """
+    tau = 5.0e-3
+    rng = np.random.default_rng(10)
+    full = ar1(40000, np.exp(-DT / tau), rng)
+    keep = rng.random(40000) > 0.2
+    index = np.arange(40000)[keep]
+
+    contiguous = fit_tau(full, np.arange(40000), DT)
+    punctured = fit_tau(full[keep], index, DT)
+
+    assert punctured == pytest.approx(tau, rel=0.06)
+    assert punctured == pytest.approx(contiguous, rel=0.06)
+
+
+def test_fit_is_nan_for_a_series_with_no_decay_to_fit():
+    rng = np.random.default_rng(11)
+    x = rng.normal(size=40000)
+
+    assert np.isnan(fit_tau(x, np.arange(40000), DT))
+
+
+def test_fit_is_nan_when_too_few_frames_survived():
+    rng = np.random.default_rng(12)
+    x = ar1(20, 0.8, rng)
+
+    assert np.isnan(fit_tau(x, np.arange(20), DT))
+
+
+def test_a_longer_time_constant_fits_larger():
+    rng = np.random.default_rng(13)
+    slow = ar1(40000, np.exp(-DT / 20.0e-3), rng)
+    fast = ar1(40000, np.exp(-DT / 5.0e-3), rng)
+    index = np.arange(40000)
+
+    assert fit_tau(slow, index, DT) > fit_tau(fast, index, DT)
+
+
+def test_median_dt_uses_the_measured_intervals_not_the_nominal_rate():
+    """Cadence jitter is small at 299 Hz but the archive spans a factor of 30 in frame rate."""
+    rng = np.random.default_rng(14)
+    ticks = np.cumsum(rng.normal(loc=DT, scale=0.0002, size=5000))
+    times = Time("2024-05-05T01:57:00", scale="utc") + ticks * u.s
+
+    assert median_dt(times) == pytest.approx(DT, rel=0.01)
+
+
+def test_median_dt_is_nan_when_the_timestamp_trailer_is_missing():
+    """A truncated cube loses its timestamps entirely -- ser.py returns an empty Time array."""
+    assert np.isnan(median_dt(Time([], format="isot", scale="utc")))
