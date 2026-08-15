@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.14 is what runs in production; 3.13 is the floor still worth keeping green
+        python-version: ["3.13", "3.14"]
+
+    env:
+      # the runners are headless, and importing pyplot without this picks a GUI backend
+      MPLBACKEND: Agg
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # setuptools_scm derives the version from tags, so the full history has to be here
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Show versions
+        run: |
+          python -c "from timdimm_tng.version import version; print('timdimm_tng', version)"
+          python -c "import astropy, numpy, photutils, skimage, scipy; print('astropy', astropy.__version__, '| numpy', numpy.__version__, '| photutils', photutils.__version__, '| skimage', skimage.__version__, '| scipy', scipy.__version__)"
+
+      - name: Run tests
+        # the archived-data tests skip themselves when ~/SAAO/timdimm_data is absent, which it is here
+        run: pytest -v --color=yes
+
+  codestyle:
+    name: flake8
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install flake8
+        run: python -m pip install flake8
+
+      # the package only; scripts/ still carries a backlog of violations and is linted separately
+      # once it is cleaned up. Line length matches the ruff and flake8 settings in pyproject.toml.
+      - name: Lint
+        run: flake8 src/timdimm_tng --count --max-line-length=132

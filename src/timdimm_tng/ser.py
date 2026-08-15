@@ -3,6 +3,8 @@ the specifications for unpacking SER files are given at:
 http://www.grischa-hahn.homepage.t-online.de/astro/ser/SER%20Doc%20V3b.pdf
 """
 
+import warnings
+
 from struct import unpack
 from pathlib import Path
 from enum import Enum
@@ -179,20 +181,26 @@ def load_ser_file(filename):
 
         # Image data starts at File start offset decimal 178
         # Size of every image frame in byte is: 5_ImageWidth x 6_ImageHeigth x BytePerPixel
-        data_buf = fp.read(
-            output["nframe"]
-            * output["im_width"]
-            * output["im_height"]
-            * output["bytes_per_pixel"]
+        frame_nbytes = output["im_width"] * output["im_height"] * output["bytes_per_pixel"]
+        data_buf = fp.read(output["nframe"] * frame_nbytes)
+
+        # a capture interrupted part way through leaves a file whose header still promises the frames
+        # that were never written. Keep the whole frames that are there rather than failing the read,
+        # and record the header's claim so the shortfall is visible.
+        output["nframe_header"] = output["nframe"]
+        whole_frames = len(data_buf) // frame_nbytes
+        if whole_frames < output["nframe"]:
+            warnings.warn(
+                f"{p.name} is truncated: header claims {output['nframe']} frames, file holds "
+                f"{whole_frames}. Using the {whole_frames} complete frames."
+            )
+            output["nframe"] = whole_frames
+            data_buf = data_buf[:whole_frames * frame_nbytes]
+
+        dtype = np.uint8 if output["bytes_per_pixel"] == 1 else np.uint16
+        output["data"] = np.frombuffer(data_buf, dtype=dtype).reshape(
+            (output["nframe"], output["im_height"], output["im_width"])
         )
-        if output["bytes_per_pixel"] == 1:
-            output["data"] = np.frombuffer(data_buf, dtype=np.uint8).reshape(
-                (output["nframe"], output["im_height"], output["im_width"])
-            )
-        else:
-            output["data"] = np.frombuffer(data_buf, dtype=np.uint16).reshape(
-                (output["nframe"], output["im_height"], output["im_width"])
-            )
 
         # Trailer starts at byte offset: 178 + 8_FrameCount x 5_ImageWidth x 6_ImageHeigth x BytePerPixel.
         # Trailer contains Date / Integer_64 (little-endian) time stamps in UTC for every image frame.
