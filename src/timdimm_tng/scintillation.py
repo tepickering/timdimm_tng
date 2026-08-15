@@ -58,3 +58,32 @@ def throughput(bright, faint):
     if bright.sum() <= 0 or faint.sum() <= 0:
         return float("nan")
     return float(faint.sum() / bright.sum())
+
+
+def flux_ratio(bright, faint):
+    """Per-frame ratio of the faint (prism) aperture to the bright (clear) one."""
+    bright = np.asarray(bright, dtype=float)
+    faint = np.asarray(faint, dtype=float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return faint / bright
+
+
+def scint_index(ratio):
+    """
+    Normalised variance of the flux ratio, ``var(r) / mean(r)**2``.
+
+    Uncorrected for noise, hence the ``_raw`` in the column name it is logged under. Shot noise and
+    centroiding scatter are inside this number, and on real 299 Hz cubes they dominate it. The mean
+    fluxes are logged alongside so a photon-noise floor can be estimated and removed downstream.
+
+    Built on the ratio rather than on a single aperture, which makes it differential: cloud and
+    transparency changes move both apertures together and cancel out.
+    """
+    ratio = np.asarray(ratio, dtype=float)
+    ratio = ratio[np.isfinite(ratio)]
+    if ratio.size < 2:
+        return float("nan")
+    mean = ratio.mean()
+    if mean <= 0:
+        return float("nan")
+    return float(ratio.var() / mean**2)

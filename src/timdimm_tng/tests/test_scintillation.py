@@ -10,7 +10,7 @@ instead of by cube frame index.
 import numpy as np
 import pytest
 
-from timdimm_tng.scintillation import assign_apertures, throughput
+from timdimm_tng.scintillation import assign_apertures, flux_ratio, scint_index, throughput
 
 
 def two_identical_apertures(scatter, n=200000, seed=0):
@@ -92,3 +92,34 @@ def test_throughput_is_nan_when_a_mean_flux_is_not_positive():
     faint = np.zeros(500)
 
     assert np.isnan(throughput(bright, faint))
+
+
+def test_a_constant_ratio_has_no_scintillation():
+    assert scint_index(np.full(1000, 0.75)) == pytest.approx(0.0, abs=1e-12)
+
+
+def test_the_index_recovers_a_known_normalised_variance():
+    """A ratio with 20% fractional scatter has a normalised variance of 0.04."""
+    rng = np.random.default_rng(3)
+    ratio = 0.75 * (1.0 + 0.2 * rng.normal(size=200000))
+
+    assert scint_index(ratio) == pytest.approx(0.04, rel=0.02)
+
+
+def test_the_index_is_scale_free():
+    """Normalising by the squared mean makes it independent of the absolute flux level."""
+    rng = np.random.default_rng(4)
+    ratio = 0.75 * (1.0 + 0.2 * rng.normal(size=50000))
+
+    assert scint_index(ratio) == pytest.approx(scint_index(1000.0 * ratio), rel=1e-9)
+
+
+def test_flux_ratio_is_faint_over_bright_per_frame():
+    bright = np.array([100.0, 200.0, 400.0])
+    faint = np.array([50.0, 50.0, 100.0])
+
+    np.testing.assert_allclose(flux_ratio(bright, faint), [0.5, 0.25, 0.25])
+
+
+def test_the_index_is_nan_when_the_mean_ratio_is_not_positive():
+    assert np.isnan(scint_index(np.zeros(500)))
