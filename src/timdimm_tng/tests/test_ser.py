@@ -6,38 +6,11 @@ than the file actually holds. Those have to come back as the frames that are the
 exception, or one bad cube takes out a whole survey run.
 """
 
-import struct
-
 import numpy as np
 import pytest
 
 from timdimm_tng.ser import load_ser_file
-
-WIDTH, HEIGHT, NFRAMES = 8, 6, 5
-#: 100 ns ticks since 0001-01-01, i.e. the SER timestamp epoch. This is 2024-05-05T01:57 UTC.
-START_TICKS = 638504710570000128
-TICKS_PER_FRAME = 33000  # 3.3 ms
-
-
-def write_ser(path, nframe_header=NFRAMES, frames=None, timestamps=None, depth=16):
-    """Write a minimal but spec-conforming SER file, with knobs for corrupting it."""
-    if frames is None:
-        frames = np.arange(NFRAMES * HEIGHT * WIDTH, dtype=np.uint16).reshape(
-            NFRAMES, HEIGHT, WIDTH)
-    if timestamps is None:
-        timestamps = START_TICKS + TICKS_PER_FRAME * np.arange(len(frames), dtype=np.uint64)
-
-    with open(path, "wb") as fp:
-        fp.write(b"LUCAM-RECORDER")
-        for value in (0, 0, 1, WIDTH, HEIGHT, depth, nframe_header):
-            fp.write(struct.pack("<I", value))
-        for text in ("observer", "instrument", "telescope"):
-            fp.write(text.encode().ljust(40, b"\0"))
-        fp.write(struct.pack("<Q", START_TICKS))
-        fp.write(struct.pack("<Q", START_TICKS))
-        fp.write(np.asarray(frames, dtype=np.uint16 if depth > 8 else np.uint8).tobytes())
-        fp.write(np.asarray(timestamps, dtype=np.uint64).tobytes())
-    return path
+from timdimm_tng.tests.ser_helpers import HEIGHT, NFRAMES, START_TICKS, TICKS_PER_FRAME, WIDTH, write_ser
 
 
 def test_reads_a_complete_cube(tmp_path):

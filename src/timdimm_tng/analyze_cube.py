@@ -327,6 +327,7 @@ def analyze_dimm_cube(
     baselines = []
     positions = []
     fluxes = []
+    kept = []
     nbad = 0
 
     frame_meds = np.median(cube["data"], axis=(1, 2))
@@ -344,6 +345,7 @@ def analyze_dimm_cube(
             baselines.append(ap_distances)
             positions.append(apertures.positions.mean(axis=0))
             fluxes.append(ap_fluxes)
+            kept.append(i)
         else:
             nbad += 1
 
@@ -352,6 +354,7 @@ def analyze_dimm_cube(
 
     baselines = np.array(baselines).transpose()
     positions = np.array(positions).transpose()
+    kept = np.array(kept, dtype=int)
 
     seeing_vals = []
     for baseline in baselines:
@@ -369,6 +372,7 @@ def analyze_dimm_cube(
         "aperture_fluxes": fluxes,
         "frame_times": cube["frame_times"],
         "N_bad": nbad,
+        "frame_index": kept,
         "aperture_plot": fig,
     }
 
