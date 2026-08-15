@@ -335,12 +335,16 @@ def analyze_dimm_cube(
         plot=plot,
     )
 
-    # find_apertures returns however many sources it found, up to `brightest`. Carrying on with too
-    # few of them is how a cube with one visible star came to report a seeing of exactly 0.00.
+    # find_apertures returns however many sources it found, up to `brightest`. Too few is not fatal:
+    # dimm_calc re-detects per frame at a lower threshold and feeds the recovered positions forward,
+    # which genuinely rescues faint cubes -- two archived ones keep 95% of their frames that way.
+    # The degenerate case is caught downstream instead, by dimm_calc rejecting a zero-length
+    # baseline and by the bad-frame limit below.
     if len(apertures.positions) != napertures:
-        raise ValueError(
-            f"Expected {napertures} apertures, found {len(apertures.positions)}. "
-            "The target may be too faint, or one aperture obscured."
+        warnings.warn(
+            f"Found {len(apertures.positions)} apertures in the reference image, expected "
+            f"{napertures}. Relying on per-frame re-detection.",
+            UserWarning,
         )
 
     baselines = []
@@ -370,6 +374,12 @@ def analyze_dimm_cube(
 
         if nbad > 100:
             raise Exception("Hit 100 bad frame limit.")
+
+    if not baselines:
+        raise ValueError(
+            f"No frames yielded a usable baseline: {len(apertures.positions)} apertures in the "
+            f"reference image, all {nbad} frames rejected."
+        )
 
     baselines = np.array(baselines).transpose()
     positions = np.array(positions).transpose()

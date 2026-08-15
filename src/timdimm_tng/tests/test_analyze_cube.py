@@ -76,11 +76,33 @@ def test_a_one_star_cube_fails_instead_of_reporting_zero_seeing(tmp_path):
     per-frame detection, come back with two coincident centroids, and produce a baseline of exactly
     zero -- so the cube reported 0.00 arcsec as a normal result. seeing.csv holds 357 such rows,
     because postcapture's quality gate is `seeing < 10.0` and zero passes it.
+
+    Note it is the *baseline* that has to be rejected, not merely the aperture count. A cube whose
+    reference image shows one aperture can still be a real measurement, because dimm_calc re-detects
+    per frame at a lower threshold and feeds the recovered positions forward -- two archived cubes
+    keep 95% of their frames that way, with a 48 px baseline matching their healthy neighbours.
     """
     path = write_ser(tmp_path / "onestar.ser", frames=dimm_frames(20, spot_x=(30,)))
 
-    with pytest.raises(ValueError, match="2 apertures"):
+    with pytest.raises(ValueError, match="usable baseline"):
         analyze_dimm_cube(path)
+
+
+def test_a_faint_cube_is_rescued_by_per_frame_redetection(tmp_path):
+    """
+    The other side of that: a cube too faint for the reference image must still be analysed when the
+    individual frames can be centroided. Rejecting on aperture count alone would throw these away.
+    """
+    frames = dimm_frames(60)
+    # analyze_dimm_cube builds its reference from the mean of the first five frames, so blanking the
+    # second spot there leaves one aperture to start from while every frame still holds both
+    frames[:5, :, SPOT_X[1] - 10:] = 100
+
+    with pytest.warns(UserWarning, match="Relying on per-frame"):
+        results = analyze_dimm_cube(write_ser(tmp_path / "faint.ser", frames=frames))
+
+    assert len(results["frame_index"]) > 40
+    assert np.median(results["baseline_lengths"][0]) == pytest.approx(30.0, abs=2.0)
 
 
 def test_a_zero_length_baseline_is_a_bad_frame(tmp_path):
