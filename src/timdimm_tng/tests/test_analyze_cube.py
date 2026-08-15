@@ -9,7 +9,12 @@ any lag-based estimator silently shifts the series against each other.
 import numpy as np
 import pytest
 
-from timdimm_tng.analyze_cube import analyze_dimm_cube
+from timdimm_tng.analyze_cube import (
+    DIMM_CADENCE_HZ,
+    DIMM_IMAGE_SHAPE,
+    analyze_dimm_cube,
+    seeing_is_valid,
+)
 from timdimm_tng.scintillation import scintillation_stats
 from timdimm_tng.tests.ser_helpers import write_ser
 
@@ -18,22 +23,22 @@ SPOT_X = (15, 45)
 SPOT_Y = 30
 
 
-def dimm_frames(nframes, bad=(), rng=None, spot_x=SPOT_X):
+def dimm_frames(nframes, bad=(), rng=None, spot_x=SPOT_X, size=SIZE):
     """A cube of Gaussian spots. Frames listed in ``bad`` are flat, so centroiding fails."""
     rng = rng or np.random.default_rng(0)
-    y, x = np.mgrid[:SIZE, :SIZE]
-    frames = np.zeros((nframes, SIZE, SIZE))
+    y, x = np.mgrid[:size, :size]
+    frames = np.zeros((nframes, size, size))
     for i in range(nframes):
         if i in bad:
             frames[i] = 500.0  # a flat frame has no sources at all
             continue
-        frame = np.full((SIZE, SIZE), 100.0)
+        frame = np.full((size, size), 100.0)
         for cx in spot_x:
             jitter = rng.normal(scale=0.3, size=2)
             frame += 3000.0 * np.exp(
                 -((x - cx - jitter[0]) ** 2 + (y - SPOT_Y - jitter[1]) ** 2) / (2 * 2.0**2)
             )
-        frames[i] = frame + rng.normal(scale=5.0, size=(SIZE, SIZE))
+        frames[i] = frame + rng.normal(scale=5.0, size=(size, size))
     return np.clip(frames, 0, 65535).astype(np.uint16)
 
 
@@ -149,3 +154,52 @@ def test_the_results_dict_feeds_scintillation_stats(tmp_path):
     assert stats["throughput"] == pytest.approx(1.0, abs=0.02)
     assert stats["scint_index_raw"] == pytest.approx(0.0, abs=1e-3)
     assert stats["cadence_hz"] == pytest.approx(303.0, rel=0.02)
+
+
+def test_the_production_configuration_is_valid_for_seeing():
+    assert seeing_is_valid(DIMM_IMAGE_SHAPE, DIMM_CADENCE_HZ)
+
+
+@pytest.mark.parametrize("cadence", [10.5, 43.9, 120.2, 253.2, 381.0])
+def test_a_cadence_away_from_the_nominal_rate_is_not_valid_for_seeing(cadence):
+    """
+    A slow cube does not freeze the atmosphere, so its baseline scatter is not image motion. The
+    archive's 10.5 Hz test cubes are where the surviving sub-arcsecond seeing values come from --
+    12 of them, between 0.13 and 0.50 arcsec, below anything the site has ever delivered.
+    """
+    assert not seeing_is_valid(DIMM_IMAGE_SHAPE, cadence)
+
+
+def test_a_different_roi_is_not_valid_for_seeing():
+    """The commissioning cubes are 443x416; the plate scale the seeing depends on assumes 400x400."""
+    assert not seeing_is_valid((443, 416), DIMM_CADENCE_HZ)
+
+
+def test_an_unknown_cadence_is_not_valid_for_seeing():
+    """Constant SER timestamps give a NaN cadence, which is not evidence that the rate was right."""
+    assert not seeing_is_valid(DIMM_IMAGE_SHAPE, float("nan"))
+
+
+def test_a_small_cube_is_flagged_invalid_but_still_measured(tmp_path):
+    """
+    The flag is advisory, not fatal: throughput and the flux statistics are fine on a cube that is
+    the wrong shape for seeing, so the analysis must still run and return its numbers.
+    """
+    path = write_ser(tmp_path / "small.ser", frames=dimm_frames(20))
+
+    results = analyze_dimm_cube(path)
+
+    assert results["seeing_valid"] is False
+    assert results["image_shape"] == (SIZE, SIZE)
+    assert np.isfinite(results["seeing"].value)
+
+
+def test_a_production_shaped_cube_is_flagged_valid(tmp_path):
+    frames = dimm_frames(20, spot_x=(150, 250), size=400)
+    path = write_ser(tmp_path / "production.ser", frames=frames)
+
+    results = analyze_dimm_cube(path)
+
+    assert results["image_shape"] == DIMM_IMAGE_SHAPE
+    assert results["cadence_hz"] == pytest.approx(303.0, rel=0.02)
+    assert results["seeing_valid"] is True

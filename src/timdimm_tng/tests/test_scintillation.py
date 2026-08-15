@@ -504,3 +504,43 @@ def test_nan_values_are_written_as_nan_and_parse_back_as_nan():
     assert fields["throughput"] == "nan"
     assert np.isnan(float(fields["throughput"]))
     assert int(fields["n_kept"]) == MIN_KEPT - 1
+
+
+def test_flux_statistics_survive_a_cube_with_no_usable_timestamps():
+    """
+    Older SER writers left the per-frame timestamps constant, so median_dt is NaN. That is a real
+    limit on the *time constants*, but throughput and the scintillation index never use dt. The
+    archive holds a 2095-frame cube (`last_good_seeing`) that returned nothing at all because of it.
+    """
+    results = fake_results(n=2000)
+    results["frame_times"] = Time(["2024-05-05T01:57:00"] * 2000, scale="utc")
+
+    stats = scintillation_stats(results)
+
+    assert np.isfinite(stats["throughput"])
+    assert np.isfinite(stats["scint_index_raw"])
+    assert np.isfinite(stats["mean_flux_bright"])
+    assert np.isfinite(stats["frac_clipped"])
+    assert stats["n_kept"] == 2000
+
+
+def test_time_constants_are_withheld_when_the_cadence_is_unknown():
+    """The other half of that: a tau in milliseconds is meaningless without a frame interval."""
+    results = fake_results(n=2000)
+    results["frame_times"] = Time(["2024-05-05T01:57:00"] * 2000, scale="utc")
+
+    stats = scintillation_stats(results)
+
+    assert np.isnan(stats["cadence_hz"])
+    assert np.isnan(stats["tau_motion_ms"])
+    assert np.isnan(stats["tau_scint_ms"])
+    # censoring reports the sampling interval as an upper limit, and there is no interval to report
+    assert stats["tau_scint_censored"] == 0
+
+
+def test_a_short_cube_still_yields_nothing():
+    """MIN_KEPT is unchanged: too few frames means no statistic of any kind, dt or no dt."""
+    stats = scintillation_stats(fake_results(n=MIN_KEPT - 1, nbad=10))
+
+    assert np.isnan(stats["throughput"])
+    assert np.isnan(stats["scint_index_raw"])

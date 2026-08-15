@@ -268,7 +268,7 @@ def scintillation_stats(results):
     }
     stats.update({key: float("nan") for key in _NAN_KEYS})
 
-    if n_kept < MIN_KEPT or not np.isfinite(dt):
+    if n_kept < MIN_KEPT:
         return stats
 
     bright, faint = assign_apertures(fluxes)
@@ -279,14 +279,20 @@ def scintillation_stats(results):
     ratio = flux_ratio(bright, faint)
     stats["scint_index_raw"], stats["frac_clipped"] = scint_index(ratio, return_clipped=True)
 
+    acf1, npairs = lag_autocorr(ratio, index, 1)
+    stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
+
+    # Everything above is dimensionless and needs only the frame *order*. Everything below is a time
+    # constant in milliseconds, so it needs a frame interval -- and older SER writers left the
+    # per-frame timestamps constant. Withhold the time constants rather than the whole row.
+    if not np.isfinite(dt):
+        return stats
+
     # the differential motion -- the same series the seeing is computed from -- not the
     # common-mode aperture_positions, which is telescope shake and has its own time constant
     baseline = np.asarray(results["baseline_lengths"], dtype=float)[0]
     tau_motion = fit_tau(baseline, index, dt)
     stats["tau_motion_ms"] = tau_motion * 1000.0 if np.isfinite(tau_motion) else float("nan")
-
-    acf1, npairs = lag_autocorr(ratio, index, 1)
-    stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
 
     if np.isfinite(acf1) and acf1 >= ACF1_CENSOR_THRESHOLD:
         tau_scint = fit_tau(ratio, index, dt)

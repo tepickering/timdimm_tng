@@ -39,7 +39,9 @@ STAT_KEYS = (
     "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
     "mean_flux_bright", "mean_flux_faint",
 )
-COLUMNS = ("host", "night", "cube", "path", "status", "seeing", "elapsed_s") + STAT_KEYS
+COLUMNS = (
+    "host", "night", "cube", "path", "status", "seeing", "seeing_valid", "image_shape", "elapsed_s",
+) + STAT_KEYS
 
 
 def parse_args(argv=None):
@@ -125,6 +127,8 @@ def main(argv=None):
                 target = path if args.in_place else stage(path, work)
                 results = analyze_dimm_cube(target)
                 row["seeing"] = round(float(results["seeing"].value), 3)
+                row["seeing_valid"] = int(results["seeing_valid"])
+                row["image_shape"] = "x".join(str(n) for n in results["image_shape"])
                 row["status"] = "ok"
                 for key, value in scintillation_stats(results).items():
                     row[key] = round(value, 6) if isinstance(value, float) else value

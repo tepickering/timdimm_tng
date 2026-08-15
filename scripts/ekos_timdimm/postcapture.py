@@ -17,7 +17,12 @@ from photutils.aperture import ApertureStats
 
 from timdimm_tng.indi import INDI_Camera
 from timdimm_tng.ser import load_ser_file
-from timdimm_tng.analyze_cube import find_apertures, analyze_dimm_cube
+from timdimm_tng.analyze_cube import (
+    DIMM_CADENCE_HZ,
+    DIMM_IMAGE_SHAPE,
+    find_apertures,
+    analyze_dimm_cube,
+)
 from timdimm_tng.scintillation import CSV_HEADER, format_row, scintillation_stats
 
 
@@ -116,7 +121,17 @@ except Exception as e:
 # cubes outright, but nothing downstream should accept a sub-arcsecond-floor seeing regardless.
 MIN_SEEING = 0.1  # arcsec; the site has never delivered better than ~0.5
 
-if np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
+# ...and a seeing bound alone does not separate them. The 12 surviving sub-arcsecond values in the
+# archive all come from slow, small test cubes, whose baseline scatter is not image motion at all.
+# `seeing_valid` rejects those on configuration, before their number is ever compared to a bound.
+# The scintillation row above is written regardless: throughput does not care about the cadence.
+if not seeing_data['seeing_valid']:
+    log.warning(
+        f"Not logging seeing: cube is {seeing_data['image_shape']} at "
+        f"{seeing_data['cadence_hz']:.1f} Hz, not the {DIMM_IMAGE_SHAPE} "
+        f"{DIMM_CADENCE_HZ:.0f} Hz configuration seeing is calibrated for."
+    )
+elif np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
     if seeing_data['N_bad'] < 50:
         csv_file = Path.home() / "seeing.csv"

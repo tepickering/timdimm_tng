@@ -24,6 +24,41 @@ from photutils.segmentation import SourceFinder, make_2dgaussian_kernel, SourceC
 from photutils.aperture import ApertureStats, CircularAperture
 
 from timdimm_tng.ser import load_ser_file
+from timdimm_tng.scintillation import median_dt
+
+
+#: The production DIMM configuration. A seeing measurement is only meaningful from a cube taken this
+#: way: the 400x400 ROI the plate scale assumes, read out fast enough that the baseline scatter is
+#: image motion rather than the atmosphere evolving during the exposure.
+DIMM_IMAGE_SHAPE = (400, 400)
+DIMM_CADENCE_HZ = 299.25
+#: Fractional slack on the cadence, to absorb readout jitter rather than a different camera mode.
+CADENCE_TOLERANCE = 0.1
+
+
+def seeing_is_valid(image_shape, cadence_hz):
+    """
+    Is this cube's configuration one that a seeing value can be taken from?
+
+    Advisory, not fatal. The flux statistics -- prism throughput above all -- are perfectly good on a
+    cube of any shape or rate, so an off-nominal cube is still worth analysing; it is only the seeing
+    that must not be logged. The archive's slow test cubes are the source of the surviving
+    sub-arcsecond seeing values, which no lower bound on the seeing itself separates cleanly.
+
+    Parameters
+    ----------
+    image_shape : tuple
+        ``(height, width)`` of one frame.
+    cadence_hz : float
+        Frame rate measured from the timestamps. NaN when they are unusable, which is not valid:
+        an unknown rate is not evidence of the right one.
+    """
+    if tuple(image_shape) != DIMM_IMAGE_SHAPE:
+        return False
+    if not np.isfinite(cadence_hz):
+        return False
+    return bool(abs(cadence_hz - DIMM_CADENCE_HZ) <= CADENCE_TOLERANCE * DIMM_CADENCE_HZ)
+
 
 warnings.filterwarnings("ignore", module="erfa")
 
@@ -393,8 +428,15 @@ def analyze_dimm_cube(
 
     ave_seeing = u.Quantity(seeing_vals).mean()
 
+    image_shape = tuple(cube["data"].shape[1:])
+    dt = median_dt(cube["frame_times"])
+    cadence_hz = 1.0 / dt if np.isfinite(dt) and dt > 0 else float("nan")
+
     return {
         "seeing": ave_seeing,
+        "seeing_valid": seeing_is_valid(image_shape, cadence_hz),
+        "image_shape": image_shape,
+        "cadence_hz": cadence_hz,
         "raw_seeing": seeing_vals,
         "baseline_lengths": baselines,
         "aperture_positions": positions,
