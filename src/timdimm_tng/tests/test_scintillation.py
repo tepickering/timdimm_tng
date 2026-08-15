@@ -14,6 +14,7 @@ from astropy.time import Time
 
 from timdimm_tng.scintillation import (
     ACF1_CENSOR_THRESHOLD,
+    CSV_COLUMNS,
     CSV_HEADER,
     MIN_KEPT,
     format_row,
@@ -497,7 +498,7 @@ def test_a_zero_flux_aperture_gives_nan_throughput_without_raising():
 
 def test_the_row_has_one_field_per_header_column():
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
 
     assert row.endswith("\n")
     assert CSV_HEADER.endswith("\n")
@@ -506,7 +507,7 @@ def test_the_row_has_one_field_per_header_column():
 
 def test_the_row_starts_with_the_join_key():
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
     fields = row.strip().split(",")
 
     assert CSV_HEADER.strip().split(",")[:2] == ["time", "target"]
@@ -519,7 +520,7 @@ def test_the_row_round_trips_through_csv():
     import io
 
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
 
     parsed = list(csv.DictReader(io.StringIO(CSV_HEADER + row)))[0]
 
@@ -530,7 +531,7 @@ def test_the_row_round_trips_through_csv():
 
 def test_nan_values_are_written_as_nan_and_parse_back_as_nan():
     stats = scintillation_stats(fake_results(n=MIN_KEPT - 1, nbad=100))
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
 
     fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
 
@@ -577,3 +578,29 @@ def test_a_short_cube_still_yields_nothing():
 
     assert np.isnan(stats["throughput"])
     assert np.isnan(stats["scint_index_raw"])
+
+
+def test_the_row_carries_the_airmass():
+    """
+    Scintillation goes roughly as sec(z)**3 while the seeing analyze_dimm_cube reports is already
+    airmass-corrected, so an index logged without its airmass cannot be compared between targets.
+    Pooled over the archive the index showed almost no correlation with seeing (+0.14) despite
+    correlating strongly within a single night (+0.77), and this is the leading suspect.
+    """
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+
+    fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
+
+    assert "airmass" in CSV_COLUMNS
+    assert fields["airmass"] == "1.234"
+
+
+def test_the_airmass_matches_the_precision_seeing_csv_uses():
+    """seeing.csv writes airmass as {:.3f}; the two files are meant to be joined and compared."""
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.0)
+
+    fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
+
+    assert fields["airmass"] == "1.000"

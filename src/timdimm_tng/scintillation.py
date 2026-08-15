@@ -310,7 +310,7 @@ def scintillation_stats(results):
 CSV_COLUMNS = (
     "time", "target", "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms",
     "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
-    "mean_flux_bright", "mean_flux_faint", "frac_rejected", "exptime",
+    "mean_flux_bright", "mean_flux_faint", "frac_rejected", "airmass", "exptime",
 )
 
 CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
@@ -319,18 +319,24 @@ CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
 _PRECISION = {
     "throughput": 4, "scint_index_raw": 4, "acf1_ratio": 3,
     "tau_motion_ms": 2, "tau_scint_ms": 2, "cadence_hz": 2,
-    "mean_flux_bright": 1, "mean_flux_faint": 1, "frac_rejected": 4,
+    "mean_flux_bright": 1, "mean_flux_faint": 1, "frac_rejected": 4, "airmass": 3,
 }
 
 
-def format_row(stats, time, target, exptime):
+def format_row(stats, time, target, exptime, airmass):
     """
     Format one scintillation.csv row, newline included.
 
     ``time`` must be the *same string* written to the matching seeing.csv row -- that identity is
     what lets the two files be joined without fuzzy time matching.
+
+    ``airmass`` is logged even though seeing.csv already carries it, because the two files do not
+    have the same rows: the scintillation row is written outside the seeing quality gate, so it
+    exists for cubes that never reach seeing.csv. It is needed to interpret the index at all --
+    scintillation goes roughly as sec(z)**3, while the seeing analyze_dimm_cube reports has already
+    been divided by airmass**0.6. Written at the same precision seeing.csv uses.
     """
-    values = dict(stats, time=time, target=target, exptime=exptime)
+    values = dict(stats, time=time, target=target, exptime=exptime, airmass=airmass)
     fields = []
     for column in CSV_COLUMNS:
         value = values[column]

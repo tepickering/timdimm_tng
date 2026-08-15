@@ -107,7 +107,7 @@ try:
         with open(scint_file, 'w') as fp:
             fp.write(CSV_HEADER)
     with open(scint_file, 'a') as fp:
-        fp.write(format_row(scint, now, target, exptime))
+        fp.write(format_row(scint, now, target, exptime, pointing_status['airmass']))
     log.info(
         f"Throughput: {scint['throughput']:.3f}; scint index: {scint['scint_index_raw']:.3f}; "
         f"tau_motion: {scint['tau_motion_ms']:.2f} ms; kept {scint['n_kept']}/{scint['n_frames']}"
