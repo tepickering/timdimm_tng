@@ -10,7 +10,7 @@ instead of by cube frame index.
 import numpy as np
 import pytest
 
-from timdimm_tng.scintillation import assign_apertures, flux_ratio, scint_index, throughput
+from timdimm_tng.scintillation import assign_apertures, flux_ratio, lag_autocorr, scint_index, throughput
 
 
 def two_identical_apertures(scatter, n=200000, seed=0):
@@ -123,3 +123,85 @@ def test_flux_ratio_is_faint_over_bright_per_frame():
 
 def test_the_index_is_nan_when_the_mean_ratio_is_not_positive():
     assert np.isnan(scint_index(np.zeros(500)))
+
+
+def ar1(n, rho, rng):
+    """A first-order autoregressive series: corr at lag k is rho**k, unit variance."""
+    x = np.zeros(n)
+    noise = rng.normal(size=n)
+    scale = np.sqrt(1.0 - rho**2)
+    for i in range(1, n):
+        x[i] = rho * x[i - 1] + scale * noise[i]
+    return x
+
+
+def test_white_noise_is_uncorrelated_at_lag_one():
+    rng = np.random.default_rng(5)
+    x = rng.normal(size=20000)
+
+    rho, npairs = lag_autocorr(x, np.arange(20000), 1)
+
+    assert abs(rho) < 0.03
+    assert npairs == 19999
+
+
+def test_a_slow_series_is_strongly_correlated_at_lag_one():
+    rng = np.random.default_rng(6)
+    x = ar1(20000, 0.95, rng)
+
+    rho, _ = lag_autocorr(x, np.arange(20000), 1)
+
+    assert rho == pytest.approx(0.95, abs=0.02)
+
+
+def test_correlation_decays_as_rho_to_the_lag():
+    rng = np.random.default_rng(7)
+    x = ar1(50000, 0.8, rng)
+    index = np.arange(50000)
+
+    for lag in (1, 2, 3, 4):
+        rho, _ = lag_autocorr(x, index, lag)
+        assert rho == pytest.approx(0.8**lag, abs=0.02)
+
+
+def test_gaps_are_left_as_gaps_rather_than_closed_up():
+    """
+    The whole point. Delete 20% of the frames: correlating by array position would treat samples
+    two or three frames apart as adjacent and drag the lag-1 correlation down.
+    """
+    rng = np.random.default_rng(8)
+    full = ar1(50000, 0.8, rng)
+    keep = rng.random(50000) > 0.2
+    index = np.arange(50000)[keep]
+    x = full[keep]
+
+    rho, npairs = lag_autocorr(x, index, 1)
+    naive = np.corrcoef(x[:-1], x[1:])[0, 1]
+
+    assert rho == pytest.approx(0.8, abs=0.02)
+    assert npairs == pytest.approx(0.64 * 50000, rel=0.05)
+
+    # Array-adjacent pairs are really k frames apart with probability 0.8 * 0.2**(k-1), so the naive
+    # estimator converges to sum(0.8 * 0.2**(k-1) * 0.8**k) = 0.64 / 0.84 = 0.762. Biased low, and
+    # by a knowable amount -- that it is only 0.04 is why this error is easy to miss on real data.
+    assert naive == pytest.approx(0.64 / 0.84, abs=0.01)
+    assert naive < rho
+
+
+def test_pair_counts_match_what_the_index_implies():
+    x = np.array([1.0, 2.0, 3.0, 4.0])
+    index = np.array([0, 1, 5, 6])
+
+    assert lag_autocorr(x, index, 1)[1] == 2   # (0,1) and (5,6)
+    assert lag_autocorr(x, index, 4)[1] == 1   # (1,5) only -- there is no frame 2 to pair with 6
+    assert lag_autocorr(x, index, 3)[1] == 0   # nothing is exactly 3 apart
+
+
+def test_too_few_pairs_gives_nan_but_still_reports_the_count():
+    x = np.array([1.0, 2.0, 3.0, 4.0])
+    index = np.array([0, 1, 5, 6])
+
+    rho, npairs = lag_autocorr(x, index, 1)
+
+    assert np.isnan(rho)
+    assert npairs == 2

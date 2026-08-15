@@ -87,3 +87,53 @@ def scint_index(ratio):
     if mean <= 0:
         return float("nan")
     return float(ratio.var() / mean**2)
+
+
+#: A lag with fewer contributing pairs than this is not trusted, and not used in a fit.
+MIN_PAIRS = 30
+
+
+def lag_autocorr(x, index, lag):
+    """
+    Autocorrelation at an integer frame lag, using only genuinely adjacent-in-time pairs.
+
+    Frames where centroiding failed are missing from ``x``, so consecutive entries are not
+    necessarily consecutive frames. The samples are scattered back into a full-length array with
+    NaN in the gaps and only pairs whose cube indices differ by exactly ``lag`` contribute.
+    Correlating by position in the compacted array instead is what produced the nonsense time
+    constant on the 435-of-4420-frame cube in docs/scintillation_logging_notes.md.
+
+    Parameters
+    ----------
+    x : array-like
+        The series, one entry per surviving frame.
+    index : array-like of int
+        Cube frame index of each entry, as returned by ``analyze_dimm_cube`` in ``frame_index``.
+    lag : int
+        Frame lag, 1 or more.
+
+    Returns
+    -------
+    rho : float
+        Pearson correlation, or NaN if fewer than ``MIN_PAIRS`` pairs contribute.
+    npairs : int
+        How many pairs contributed. Reported even when ``rho`` is NaN.
+    """
+    if lag < 1:
+        raise ValueError("lag must be at least 1")
+
+    x = np.asarray(x, dtype=float)
+    index = np.asarray(index, dtype=int)
+    if x.size == 0:
+        return float("nan"), 0
+
+    full = np.full(int(index.max()) + 1, np.nan)
+    full[index] = x
+
+    a, b = full[:-lag], full[lag:]
+    ok = np.isfinite(a) & np.isfinite(b)
+    npairs = int(ok.sum())
+    if npairs < MIN_PAIRS:
+        return float("nan"), npairs
+
+    return float(np.corrcoef(a[ok], b[ok])[0, 1]), npairs
