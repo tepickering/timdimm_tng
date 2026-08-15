@@ -7,8 +7,10 @@ any lag-based estimator silently shifts the series against each other.
 """
 
 import numpy as np
+import pytest
 
 from timdimm_tng.analyze_cube import analyze_dimm_cube
+from timdimm_tng.scintillation import scintillation_stats
 from timdimm_tng.tests.ser_helpers import write_ser
 
 SIZE = 60
@@ -66,3 +68,22 @@ def test_frame_index_is_integer_typed(tmp_path):
 
     assert np.issubdtype(results["frame_index"].dtype, np.integer)
     assert results["frame_times"][results["frame_index"]].isot[0].startswith("2024-05-05")
+
+
+def test_the_results_dict_feeds_scintillation_stats(tmp_path):
+    """
+    The one place the real analyze_dimm_cube output meets the estimators. Every other scintillation
+    test builds the dict by hand, and postcapture.py -- where the two actually meet in production --
+    talks to a camera and cannot be tested, so a shape mistake here would otherwise reach the
+    telescope before anything caught it.
+    """
+    path = write_ser(tmp_path / "feeds.ser", frames=dimm_frames(120, bad=(7, 8, 60)))
+
+    stats = scintillation_stats(analyze_dimm_cube(path))
+
+    assert stats["n_kept"] == 117
+    assert stats["n_frames"] == 120
+    # two identical synthetic spots, so the throughput is 1 and there is nothing scintillating
+    assert stats["throughput"] == pytest.approx(1.0, abs=0.02)
+    assert stats["scint_index_raw"] == pytest.approx(0.0, abs=1e-3)
+    assert stats["cadence_hz"] == pytest.approx(303.0, rel=0.02)

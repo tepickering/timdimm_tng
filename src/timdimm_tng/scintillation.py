@@ -260,3 +260,36 @@ def scintillation_stats(results):
         stats["tau_scint_censored"] = 1
 
     return stats
+
+
+#: Column order of ~/scintillation.csv. Kept in one place so the header and the rows cannot drift.
+CSV_COLUMNS = (
+    "time", "target", "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms",
+    "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
+    "mean_flux_bright", "mean_flux_faint", "exptime",
+)
+
+CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
+
+#: Fixed precision keeps the file diffable and readable. Anything absent here is written with str().
+_PRECISION = {
+    "throughput": 4, "scint_index_raw": 4, "acf1_ratio": 3,
+    "tau_motion_ms": 2, "tau_scint_ms": 2, "cadence_hz": 2,
+    "mean_flux_bright": 1, "mean_flux_faint": 1,
+}
+
+
+def format_row(stats, time, target, exptime):
+    """
+    Format one scintillation.csv row, newline included.
+
+    ``time`` must be the *same string* written to the matching seeing.csv row -- that identity is
+    what lets the two files be joined without fuzzy time matching.
+    """
+    values = dict(stats, time=time, target=target, exptime=exptime)
+    fields = []
+    for column in CSV_COLUMNS:
+        value = values[column]
+        digits = _PRECISION.get(column)
+        fields.append(f"{value:.{digits}f}" if digits is not None else str(value))
+    return ",".join(fields) + "\n"

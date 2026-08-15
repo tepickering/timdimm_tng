@@ -18,6 +18,7 @@ from photutils.aperture import ApertureStats
 from timdimm_tng.indi import INDI_Camera
 from timdimm_tng.ser import load_ser_file
 from timdimm_tng.analyze_cube import find_apertures, analyze_dimm_cube
+from timdimm_tng.scintillation import CSV_HEADER, format_row, scintillation_stats
 
 
 log = logging.getLogger("timDIMM")
@@ -85,6 +86,29 @@ try:
 except Exception as e:
     log.error(f"Seeing analysis failed: {e}")
     os.system("mv ~/seeing.ser ~/last_bad_seeing.ser")
+    sys.exit(0)
+
+# one timestamp, shared by both files, so scintillation.csv joins seeing.csv on it exactly
+now = Time.now().isot
+target = pointing_status['target']
+
+# written outside the seeing quality gate below: a dewing prism is what this measures, and it is
+# also what makes the seeing analysis fail, so gating on the seeing row would lose exactly the
+# measurements we want
+try:
+    scint = scintillation_stats(seeing_data)
+    scint_file = Path.home() / "scintillation.csv"
+    if not scint_file.exists():
+        with open(scint_file, 'w') as fp:
+            fp.write(CSV_HEADER)
+    with open(scint_file, 'a') as fp:
+        fp.write(format_row(scint, now, target, exptime))
+    log.info(
+        f"Throughput: {scint['throughput']:.3f}; scint index: {scint['scint_index_raw']:.3f}; "
+        f"tau_motion: {scint['tau_motion_ms']:.2f} ms; kept {scint['n_kept']}/{scint['n_frames']}"
+    )
+except Exception as e:
+    log.error(f"Scintillation analysis failed: {e}")
 
 if np.isfinite(seeing_data['seeing'].value) and seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
@@ -97,10 +121,9 @@ if np.isfinite(seeing_data['seeing'].value) and seeing_data['seeing'].value < 10
         with open(csv_file, 'a') as fp:
             z = pointing_status['airmass']
             azimuth = pointing_status['az']
-            target = pointing_status['target']
             seeing = seeing_data['seeing'].value
             fp.write(
-                f"{Time.now().isot},{target},{seeing:.3f},{z:.3f},{azimuth:.1f},{exptime}\n"
+                f"{now},{target},{seeing:.3f},{z:.3f},{azimuth:.1f},{exptime}\n"
             )
 
         with open(Path.home() / "seeing.txt", 'w') as f:

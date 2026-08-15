@@ -14,7 +14,9 @@ from astropy.time import Time
 
 from timdimm_tng.scintillation import (
     ACF1_CENSOR_THRESHOLD,
+    CSV_HEADER,
     MIN_KEPT,
+    format_row,
     assign_apertures,
     fit_tau,
     flux_ratio,
@@ -405,3 +407,47 @@ def test_a_zero_flux_aperture_gives_nan_throughput_without_raising():
     assert np.isnan(stats["throughput"])
     assert np.isnan(stats["scint_index_raw"])
     assert stats["n_kept"] == 4000
+
+
+def test_the_row_has_one_field_per_header_column():
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+
+    assert row.endswith("\n")
+    assert CSV_HEADER.endswith("\n")
+    assert len(row.strip().split(",")) == len(CSV_HEADER.strip().split(","))
+
+
+def test_the_row_starts_with_the_join_key():
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+    fields = row.strip().split(",")
+
+    assert CSV_HEADER.strip().split(",")[:2] == ["time", "target"]
+    assert fields[0] == "2024-05-05T01:57:00.000"
+    assert fields[1] == "Achernar"
+
+
+def test_the_row_round_trips_through_csv():
+    import csv
+    import io
+
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+
+    parsed = list(csv.DictReader(io.StringIO(CSV_HEADER + row)))[0]
+
+    assert float(parsed["throughput"]) == pytest.approx(stats["throughput"], abs=1e-4)
+    assert int(parsed["n_kept"]) == stats["n_kept"]
+    assert int(parsed["tau_scint_censored"]) == stats["tau_scint_censored"]
+
+
+def test_nan_values_are_written_as_nan_and_parse_back_as_nan():
+    stats = scintillation_stats(fake_results(n=MIN_KEPT - 1, nbad=100))
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001)
+
+    fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
+
+    assert fields["throughput"] == "nan"
+    assert np.isnan(float(fields["throughput"]))
+    assert int(fields["n_kept"]) == MIN_KEPT - 1
