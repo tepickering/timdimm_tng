@@ -27,13 +27,15 @@ from timdimm_tng.ser import load_ser_file
 from timdimm_tng.scintillation import median_dt
 
 
-#: The production DIMM configuration. A seeing measurement is only meaningful from a cube taken this
-#: way: the 400x400 ROI the plate scale assumes, read out fast enough that the baseline scatter is
-#: image motion rather than the atmosphere evolving during the exposure.
+#: The ROI the DIMM plate scale assumes.
 DIMM_IMAGE_SHAPE = (400, 400)
-DIMM_CADENCE_HZ = 299.25
-#: Fractional slack on the cadence, to absorb readout jitter rather than a different camera mode.
-CADENCE_TOLERANCE = 0.1
+
+#: A seeing measurement needs an exposure short enough to freeze the image motion; a longer one
+#: averages over it and the baseline scatter stops being seeing. The rate is a proxy for the
+#: exposure, and any rate above this is fast enough -- the archive holds good nights at 253, 299 and
+#: 381 Hz. Falling below it in production is itself the alert: it means the camera came up on a
+#: USB 2.x bus and is not running at the rate it was configured for.
+MIN_CADENCE_HZ = 200.0
 
 
 def seeing_is_valid(image_shape, cadence_hz):
@@ -50,14 +52,12 @@ def seeing_is_valid(image_shape, cadence_hz):
     image_shape : tuple
         ``(height, width)`` of one frame.
     cadence_hz : float
-        Frame rate measured from the timestamps. NaN when they are unusable, which is not valid:
-        an unknown rate is not evidence of the right one.
+        Frame rate measured from the timestamps, standing in for the exposure time. NaN when the
+        timestamps are unusable, which is not valid: an unknown rate is not evidence of a fast one.
     """
     if tuple(image_shape) != DIMM_IMAGE_SHAPE:
         return False
-    if not np.isfinite(cadence_hz):
-        return False
-    return bool(abs(cadence_hz - DIMM_CADENCE_HZ) <= CADENCE_TOLERANCE * DIMM_CADENCE_HZ)
+    return bool(np.isfinite(cadence_hz) and cadence_hz >= MIN_CADENCE_HZ)
 
 
 warnings.filterwarnings("ignore", module="erfa")

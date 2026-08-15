@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 from timdimm_tng.analyze_cube import (
-    DIMM_CADENCE_HZ,
     DIMM_IMAGE_SHAPE,
+    MIN_CADENCE_HZ,
     analyze_dimm_cube,
     seeing_is_valid,
 )
@@ -156,23 +156,31 @@ def test_the_results_dict_feeds_scintillation_stats(tmp_path):
     assert stats["cadence_hz"] == pytest.approx(303.0, rel=0.02)
 
 
-def test_the_production_configuration_is_valid_for_seeing():
-    assert seeing_is_valid(DIMM_IMAGE_SHAPE, DIMM_CADENCE_HZ)
-
-
-@pytest.mark.parametrize("cadence", [10.5, 43.9, 120.2, 253.2, 381.0])
-def test_a_cadence_away_from_the_nominal_rate_is_not_valid_for_seeing(cadence):
+@pytest.mark.parametrize("cadence", [MIN_CADENCE_HZ, 253.2, 299.25, 381.0])
+def test_any_rate_fast_enough_to_freeze_the_seeing_is_valid(cadence):
     """
-    A slow cube does not freeze the atmosphere, so its baseline scatter is not image motion. The
-    archive's 10.5 Hz test cubes are where the surviving sub-arcsecond seeing values come from --
-    12 of them, between 0.13 and 0.50 arcsec, below anything the site has ever delivered.
+    What matters is the exposure time, not one nominal rate. 2023-06-24 ran at 381 Hz and 2024-04-30
+    at 253 Hz; both sit on the throughput decline curve with sensible seeing, so both are real data.
+    """
+    assert seeing_is_valid(DIMM_IMAGE_SHAPE, cadence)
+
+
+@pytest.mark.parametrize("cadence", [10.5, 43.9, 120.2, 199.9])
+def test_too_slow_an_exposure_is_not_valid_for_seeing(cadence):
+    """
+    A long exposure averages over the image motion, so the baseline scatter is no longer seeing. The
+    archive's 10.5 Hz test cubes are where the surviving sub-arcsecond values come from -- 12 of
+    them, between 0.13 and 0.50 arcsec, below anything the site has ever delivered.
+
+    A production cube landing here is a hardware alert in its own right: it means the camera
+    negotiated a USB 2.x bus and is not running at the rate it was configured for.
     """
     assert not seeing_is_valid(DIMM_IMAGE_SHAPE, cadence)
 
 
 def test_a_different_roi_is_not_valid_for_seeing():
     """The commissioning cubes are 443x416; the plate scale the seeing depends on assumes 400x400."""
-    assert not seeing_is_valid((443, 416), DIMM_CADENCE_HZ)
+    assert not seeing_is_valid((443, 416), 299.25)
 
 
 def test_an_unknown_cadence_is_not_valid_for_seeing():

@@ -18,8 +18,8 @@ from photutils.aperture import ApertureStats
 from timdimm_tng.indi import INDI_Camera
 from timdimm_tng.ser import load_ser_file
 from timdimm_tng.analyze_cube import (
-    DIMM_CADENCE_HZ,
     DIMM_IMAGE_SHAPE,
+    MIN_CADENCE_HZ,
     find_apertures,
     analyze_dimm_cube,
 )
@@ -126,10 +126,12 @@ MIN_SEEING = 0.1  # arcsec; the site has never delivered better than ~0.5
 # `seeing_valid` rejects those on configuration, before their number is ever compared to a bound.
 # The scintillation row above is written regardless: throughput does not care about the cadence.
 if not seeing_data['seeing_valid']:
+    # A production cube arriving here is a hardware alert, not a routine skip: the camera should
+    # always be 400x400 well above 200 Hz, and a slow one means it came up on a USB 2.x bus.
     log.warning(
         f"Not logging seeing: cube is {seeing_data['image_shape']} at "
-        f"{seeing_data['cadence_hz']:.1f} Hz, not the {DIMM_IMAGE_SHAPE} "
-        f"{DIMM_CADENCE_HZ:.0f} Hz configuration seeing is calibrated for."
+        f"{seeing_data['cadence_hz']:.1f} Hz, not {DIMM_IMAGE_SHAPE} at the "
+        f"{MIN_CADENCE_HZ:.0f} Hz minimum seeing needs. Check the camera's USB connection."
     )
 elif np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
