@@ -13,12 +13,15 @@ import pytest
 from astropy.time import Time
 
 from timdimm_tng.scintillation import (
+    ACF1_CENSOR_THRESHOLD,
+    MIN_KEPT,
     assign_apertures,
     fit_tau,
     flux_ratio,
     lag_autocorr,
     median_dt,
     scint_index,
+    scintillation_stats,
     throughput,
 )
 
@@ -282,3 +285,123 @@ def test_median_dt_uses_the_measured_intervals_not_the_nominal_rate():
 def test_median_dt_is_nan_when_the_timestamp_trailer_is_missing():
     """A truncated cube loses its timestamps entirely -- ser.py returns an empty Time array."""
     assert np.isnan(median_dt(Time([], format="isot", scale="utc")))
+
+
+def fake_results(n=4000, nbad=0, tau_motion=5.0e-3, ratio_rho=0.0, seed=20):
+    """A stand-in for the analyze_dimm_cube results dict, with known time constants."""
+    rng = np.random.default_rng(seed)
+    total = n + nbad
+    index = rng.choice(total, size=n, replace=False)
+    index.sort()
+
+    baseline = 50.0 + 0.5 * ar1(total, np.exp(-DT / tau_motion), rng)[index]
+    ratio_series = 0.75 * (1.0 + 0.2 * ar1(total, ratio_rho, rng)[index])
+    bright = 1000.0 * (1.0 + 0.05 * rng.normal(size=n))
+    fluxes = [np.array([b, b * r]) for b, r in zip(bright, ratio_series)]
+
+    times = Time("2024-05-05T01:57:00", scale="utc") + DT * np.arange(total) * u.s
+    return {
+        "baseline_lengths": np.array([baseline]),
+        "aperture_fluxes": fluxes,
+        "frame_times": times,
+        "frame_index": index,
+        "N_bad": nbad,
+    }
+
+
+def test_stats_has_exactly_the_expected_keys():
+    stats = scintillation_stats(fake_results())
+
+    assert set(stats) == {
+        "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "tau_scint_censored",
+        "acf1_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright", "mean_flux_faint",
+    }
+
+
+def test_stats_recovers_throughput_and_cadence():
+    stats = scintillation_stats(fake_results())
+
+    assert stats["throughput"] == pytest.approx(0.75, abs=0.02)
+    assert stats["cadence_hz"] == pytest.approx(1.0 / DT, rel=0.01)
+    assert stats["n_kept"] == 4000
+    assert stats["n_frames"] == 4000
+
+
+def test_stats_counts_bad_frames_into_n_frames():
+    stats = scintillation_stats(fake_results(n=4000, nbad=250))
+
+    assert stats["n_kept"] == 4000
+    assert stats["n_frames"] == 4250
+
+
+def test_stats_recovers_the_image_motion_time_constant():
+    """
+    Deliberately a longer cube than a real one. The estimator is unbiased at 4000 frames -- 4.98 ms
+    recovered from 5.00 over 15 seeds -- but the scatter there is 0.59 ms, because the lag-4
+    correlation is only 0.07 and taking its log amplifies noise at the floor. Asserting a tight
+    tolerance on a realistic cube length would be asserting a particular seed's luck. What a single
+    real cube can actually say is measured in test_a_real_length_cube_pins_tau_to_about_12_percent.
+    """
+    stats = scintillation_stats(fake_results(n=40000, tau_motion=5.0e-3))
+
+    assert stats["tau_motion_ms"] == pytest.approx(5.0, rel=0.15)
+
+
+def test_a_real_length_cube_pins_tau_to_about_12_percent():
+    """
+    The precision a production 299 Hz cube gives, which is what makes the logged column
+    interpretable: unbiased, but a single cube's tau_motion carries roughly +/-0.6 ms of sampling
+    scatter, so night-to-night changes smaller than that are not real.
+    """
+    taus = np.array([scintillation_stats(fake_results(n=4000, seed=s))["tau_motion_ms"]
+                     for s in range(15)])
+
+    assert taus.mean() == pytest.approx(5.0, rel=0.1)
+    assert 0.3 < taus.std() < 1.0
+
+
+def test_stats_recovers_image_motion_through_dropouts():
+    """A cube with 20% of frames lost must give the same answer as a clean one."""
+    clean = scintillation_stats(fake_results(n=4000, nbad=0, seed=21))
+    gappy = scintillation_stats(fake_results(n=4000, nbad=1000, seed=21))
+
+    assert gappy["tau_motion_ms"] == pytest.approx(clean["tau_motion_ms"], rel=0.2)
+
+
+def test_an_unresolved_scintillation_time_constant_is_censored():
+    """What a real 299 Hz cube does: the flux ratio decorrelates in one frame."""
+    stats = scintillation_stats(fake_results(ratio_rho=0.0))
+
+    assert stats["tau_scint_censored"] == 1
+    assert stats["tau_scint_ms"] == pytest.approx(DT * 1000.0, rel=0.01)
+    assert abs(stats["acf1_ratio"]) < ACF1_CENSOR_THRESHOLD
+
+
+def test_a_resolved_scintillation_time_constant_is_fitted_and_not_censored():
+    """The behaviour the code must already have for the day the frame rate goes up."""
+    stats = scintillation_stats(fake_results(ratio_rho=np.exp(-DT / 12.0e-3)))
+
+    assert stats["tau_scint_censored"] == 0
+    assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD
+    assert stats["tau_scint_ms"] == pytest.approx(12.0, rel=0.2)
+
+
+def test_too_few_kept_frames_gives_nan_stats_but_still_reports_the_counts():
+    stats = scintillation_stats(fake_results(n=MIN_KEPT - 1, nbad=4000))
+
+    assert stats["n_kept"] == MIN_KEPT - 1
+    assert stats["n_frames"] == MIN_KEPT - 1 + 4000
+    assert np.isfinite(stats["cadence_hz"]), "cadence comes from the cube, not the estimators"
+    for key in ("throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio"):
+        assert np.isnan(stats[key]), key
+
+
+def test_a_zero_flux_aperture_gives_nan_throughput_without_raising():
+    results = fake_results()
+    results["aperture_fluxes"] = [np.array([f[0], 0.0]) for f in results["aperture_fluxes"]]
+
+    stats = scintillation_stats(results)
+
+    assert np.isnan(stats["throughput"])
+    assert np.isnan(stats["scint_index_raw"])
+    assert stats["n_kept"] == 4000

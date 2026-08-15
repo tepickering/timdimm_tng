@@ -189,3 +189,74 @@ def median_dt(frame_times):
     if intervals.size == 0:
         return float("nan")
     return float(np.median(intervals))
+
+
+#: A lag-1 autocorrelation below this means the series decorrelates within one frame, so its time
+#: constant is an upper limit rather than a measurement. Real 299 Hz cubes give 0.10 and 0.01.
+ACF1_CENSOR_THRESHOLD = 0.2
+
+_NAN_KEYS = (
+    "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio",
+    "mean_flux_bright", "mean_flux_faint",
+)
+
+
+def scintillation_stats(results):
+    """
+    Turn an ``analyze_dimm_cube`` result dict into the columns of one scintillation.csv row.
+
+    Never raises on degenerate input: a row with NaN values and a populated ``n_kept`` says what
+    happened, whereas a missing row says nothing. The caller writes the row regardless.
+
+    Parameters
+    ----------
+    results : dict
+        As returned by ``analyze_dimm_cube``, including the ``frame_index`` key.
+
+    Returns
+    -------
+    dict
+        Scalars only. Time constants are in milliseconds; everything else is dimensionless or Hz.
+    """
+    fluxes = np.asarray(results["aperture_fluxes"], dtype=float)
+    index = np.asarray(results["frame_index"], dtype=int)
+    n_kept = len(index)
+    dt = median_dt(results["frame_times"])
+
+    stats = {
+        "n_kept": int(n_kept),
+        "n_frames": int(n_kept + results["N_bad"]),
+        "cadence_hz": float(1.0 / dt) if np.isfinite(dt) and dt > 0 else float("nan"),
+        "tau_scint_censored": 0,
+    }
+    stats.update({key: float("nan") for key in _NAN_KEYS})
+
+    if n_kept < MIN_KEPT or not np.isfinite(dt):
+        return stats
+
+    bright, faint = assign_apertures(fluxes)
+    stats["mean_flux_bright"] = float(bright.mean())
+    stats["mean_flux_faint"] = float(faint.mean())
+    stats["throughput"] = throughput(bright, faint)
+
+    ratio = flux_ratio(bright, faint)
+    stats["scint_index_raw"] = scint_index(ratio)
+
+    # the differential motion -- the same series the seeing is computed from -- not the
+    # common-mode aperture_positions, which is telescope shake and has its own time constant
+    baseline = np.asarray(results["baseline_lengths"], dtype=float)[0]
+    tau_motion = fit_tau(baseline, index, dt)
+    stats["tau_motion_ms"] = tau_motion * 1000.0 if np.isfinite(tau_motion) else float("nan")
+
+    acf1, npairs = lag_autocorr(ratio, index, 1)
+    stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
+
+    if np.isfinite(acf1) and acf1 >= ACF1_CENSOR_THRESHOLD:
+        tau_scint = fit_tau(ratio, index, dt)
+        stats["tau_scint_ms"] = tau_scint * 1000.0 if np.isfinite(tau_scint) else float("nan")
+    elif np.isfinite(acf1):
+        # decorrelated within one frame: the time constant is below the sampling interval
+        stats["tau_scint_ms"] = dt * 1000.0
+        stats["tau_scint_censored"] = 1
+
+    return stats
