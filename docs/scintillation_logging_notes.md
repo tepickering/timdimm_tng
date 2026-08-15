@@ -126,6 +126,39 @@ leverage than it saves in noise — but it sets the floor on what one cube can s
 smaller than roughly 0.6 ms are not measurements. Averaging over a night's cubes tightens it as
 usual; a single cube does not resolve a 10% change.
 
+## Why the scintillation index is estimated in log space
+
+The index shipped first as the normalised variance of the flux ratio over 5-sigma-clipped frames.
+Clipping was needed because the statistic has the whole cube's noise in its denominator: on
+`indi_2023-12-08@20-53-44` the bright aperture fell to 7 ADU against a median of 17357, the
+per-frame ratio reached 3049, and the unclipped index came out **498**. Anything above 1 already
+means the scatter exceeds the mean.
+
+It worked, but it was **biased low, and increasingly so with the scintillation** — the worst
+direction for a turbulence statistic. A symmetric cut on a lognormal removes real tail, not just
+dropouts. On synthetic data the clipped estimator returned 0.2195 against a true 0.25 at 50%
+scatter; on clean archived cubes it came in 25-30% low (0.621 to 0.383, 1.259 to 0.591) while
+rejecting only 1-2% of frames.
+
+Two diagnostics condemned it on real data:
+
+- `corr(index, frac_clipped) = +0.957` over 80 archived cubes. Between-night variation in the index
+  was variation in how many frames the clipper removed.
+- **The index showed no correlation with seeing** (+0.05 pooled over 63 cubes, flat across seeing
+  quartiles) even though it correlated strongly *within* individual nights, where the clipping
+  fraction is roughly constant: +0.85 on 2023-06-22 and +0.92 on 2023-12-08. Scintillation and
+  seeing are both turbulence integrals — differently weighted, so the correlation is imperfect, but
+  its complete absence between nights was an estimator artefact.
+
+Scintillation is multiplicative, so the ratio is lognormal, and for a lognormal the normalised
+variance is exactly `exp(sigma**2) - 1` with `sigma` the standard deviation of the log. Estimating
+`sigma` from the **median absolute deviation of `log(ratio)`** is robust *and* unbiased: a
+median-based scale cannot be moved by outliers, so nothing has to be discarded to resist them.
+Recovery on synthetic lognormal series is exact to better than 1% at 10, 20, 30 and 50% scatter.
+
+Only frames with a ratio that is zero, negative or non-finite are dropped — they have no logarithm —
+and the count is logged as `frac_rejected`, which replaces `frac_clipped`.
+
 ## A cross-check worth noting
 
 The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from

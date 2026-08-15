@@ -69,14 +69,26 @@ def flux_ratio(bright, faint):
         return faint / bright
 
 
-#: Sigma-clipping threshold for the index, in robust (MAD) sigmas. Wide enough to keep the real
-#: scintillation tail, tight enough to drop frames where the star briefly vanished.
-CLIP_SIGMA = 5.0
-
-
-def scint_index(ratio, return_clipped=False):
+def scint_index(ratio, return_rejected=False):
     """
-    Normalised variance of the flux ratio, ``var(r) / mean(r)**2``, over sigma-clipped frames.
+    Normalised variance of the flux ratio, estimated in log space as ``exp(sigma**2) - 1``.
+
+    Scintillation is multiplicative, so the flux ratio is lognormal, and for a lognormal the
+    normalised variance ``var(r) / mean(r)**2`` is exactly ``exp(sigma**2) - 1`` with ``sigma`` the
+    standard deviation of ``log(r)``. Estimating ``sigma`` with the median absolute deviation gives
+    a statistic that is robust *and* unbiased: outlying frames cannot move a median-based scale, and
+    nothing is thrown away to achieve that.
+
+    Robustness is not optional here. Being a ratio, this statistic has the whole cube's noise in its
+    denominator: on one archived cube the bright aperture fell to 7 ADU against a median of 17357 in
+    a few frames, the per-frame ratio reached 3049, and the plain normalised variance came out 498 --
+    where anything above 1 already means the scatter exceeds the mean.
+
+    This replaced a 5-sigma clip of the linear ratio, which was robust but biased low, because a
+    symmetric cut on a lognormal removes real tail as well as dropouts: 0.2195 against a true 0.25
+    on 50% synthetic scatter, and 25-30% low on clean archived cubes while rejecting only 1-2% of
+    their frames. The bias grew with the scintillation, which is the worst possible direction for a
+    turbulence statistic.
 
     Uncorrected for noise, hence the ``_raw`` in the column name it is logged under. Shot noise and
     centroiding scatter are inside this number, and on real 299 Hz cubes they dominate it. The mean
@@ -85,45 +97,34 @@ def scint_index(ratio, return_clipped=False):
     Built on the ratio rather than on a single aperture, which makes it differential: cloud and
     transparency changes move both apertures together and cancel out.
 
-    The clipping is not cosmetic. Being a ratio, this statistic has the whole cube's noise in its
-    denominator: on one archived cube the bright aperture fell to 7 ADU against a median of 17357 in
-    a few frames, the per-frame ratio reached 3049, and the unclipped index came out 498 -- where
-    anything above 1 already means the scatter exceeds the mean. Those frames record a star that
-    briefly disappeared, not the atmosphere. The scale is estimated with the median absolute
-    deviation so the outliers cannot inflate the very threshold meant to catch them.
-
     Parameters
     ----------
     ratio : array-like
         Per-frame flux ratio.
-    return_clipped : bool (default: False)
-        Also return the fraction of frames the clipping rejected.
+    return_rejected : bool (default: False)
+        Also return the fraction of frames that could not be used.
 
     Returns
     -------
     index : float
-        Normalised variance, or NaN if fewer than two frames survive or the mean is not positive.
-    frac_clipped : float
-        Only when ``return_clipped``. Fraction of finite frames rejected. A large value means the
-        cube had dropouts, which is itself worth knowing.
+        Normalised variance, or NaN if fewer than two frames are usable.
+    frac_rejected : float
+        Only when ``return_rejected``. Fraction of frames dropped for being zero, negative or not
+        finite -- an aperture that measured no flux, which has no logarithm. Nothing is dropped for
+        being an outlier. A large value means the cube had dropouts, which is worth knowing.
     """
     ratio = np.asarray(ratio, dtype=float)
-    ratio = ratio[np.isfinite(ratio)]
-    if ratio.size < 2:
-        return (float("nan"), float("nan")) if return_clipped else float("nan")
+    usable = ratio[np.isfinite(ratio) & (ratio > 0.0)]
+    if ratio.size == 0:
+        return (float("nan"), float("nan")) if return_rejected else float("nan")
 
-    kept = stats.sigma_clip(
-        ratio, sigma=CLIP_SIGMA, maxiters=10, cenfunc="median", stdfunc="mad_std", masked=True
-    )
-    good = ratio[~kept.mask] if np.ma.is_masked(kept) else ratio
-    frac_clipped = 1.0 - good.size / ratio.size
+    frac_rejected = 1.0 - usable.size / ratio.size
+    if usable.size < 2:
+        return (float("nan"), frac_rejected) if return_rejected else float("nan")
 
-    if good.size < 2:
-        return (float("nan"), frac_clipped) if return_clipped else float("nan")
-
-    mean = good.mean()
-    index = float(good.var() / mean**2) if mean > 0 else float("nan")
-    return (index, frac_clipped) if return_clipped else index
+    sigma = stats.mad_std(np.log(usable))
+    index = float(np.expm1(sigma**2))
+    return (index, frac_rejected) if return_rejected else index
 
 
 #: A lag with fewer contributing pairs than this is not trusted, and not used in a fit.
@@ -234,7 +235,7 @@ ACF1_CENSOR_THRESHOLD = 0.2
 
 _NAN_KEYS = (
     "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio",
-    "mean_flux_bright", "mean_flux_faint", "frac_clipped",
+    "mean_flux_bright", "mean_flux_faint", "frac_rejected",
 )
 
 
@@ -277,7 +278,7 @@ def scintillation_stats(results):
     stats["throughput"] = throughput(bright, faint)
 
     ratio = flux_ratio(bright, faint)
-    stats["scint_index_raw"], stats["frac_clipped"] = scint_index(ratio, return_clipped=True)
+    stats["scint_index_raw"], stats["frac_rejected"] = scint_index(ratio, return_rejected=True)
 
     acf1, npairs = lag_autocorr(ratio, index, 1)
     stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
@@ -309,7 +310,7 @@ def scintillation_stats(results):
 CSV_COLUMNS = (
     "time", "target", "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms",
     "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
-    "mean_flux_bright", "mean_flux_faint", "frac_clipped", "exptime",
+    "mean_flux_bright", "mean_flux_faint", "frac_rejected", "exptime",
 )
 
 CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
@@ -318,7 +319,7 @@ CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
 _PRECISION = {
     "throughput": 4, "scint_index_raw": 4, "acf1_ratio": 3,
     "tau_motion_ms": 2, "tau_scint_ms": 2, "cadence_hz": 2,
-    "mean_flux_bright": 1, "mean_flux_faint": 1, "frac_clipped": 4,
+    "mean_flux_bright": 1, "mean_flux_faint": 1, "frac_rejected": 4,
 }
 
 

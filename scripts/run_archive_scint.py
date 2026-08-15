@@ -35,7 +35,7 @@ from timdimm_tng.analyze_cube import analyze_dimm_cube            # noqa: E402
 from timdimm_tng.scintillation import scintillation_stats         # noqa: E402
 
 STAT_KEYS = (
-    "throughput", "scint_index_raw", "frac_clipped", "tau_motion_ms", "tau_scint_ms",
+    "throughput", "scint_index_raw", "frac_rejected", "tau_motion_ms", "tau_scint_ms",
     "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
     "mean_flux_bright", "mean_flux_faint",
 )

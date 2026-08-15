@@ -114,11 +114,35 @@ def test_a_constant_ratio_has_no_scintillation():
 
 
 def test_the_index_recovers_a_known_normalised_variance():
-    """A ratio with 20% fractional scatter has a normalised variance of 0.04."""
+    """
+    A ratio with 20% fractional scatter has a normalised variance of 0.04.
+
+    Gaussian rather than lognormal, so the log-space estimator is only approximately right here --
+    log(1 + x) ~= x - x**2/2 -- and comes in about 2% high. Real scintillation is lognormal.
+    """
     rng = np.random.default_rng(3)
     ratio = 0.75 * (1.0 + 0.2 * rng.normal(size=200000))
 
-    assert scint_index(ratio) == pytest.approx(0.04, rel=0.02)
+    assert scint_index(ratio) == pytest.approx(0.04, rel=0.03)
+
+
+@pytest.mark.parametrize("scatter", [0.1, 0.2, 0.3, 0.5])
+def test_the_index_is_unbiased_for_a_lognormal_ratio(scatter):
+    """
+    The reason for estimating the scale in log space. Scintillation is multiplicative, so the ratio
+    is lognormal, and for a lognormal the normalised variance is exactly exp(sigma**2) - 1 with
+    sigma the standard deviation of the log. No clipping is involved, so no part of the real
+    distribution is discarded.
+
+    The sigma-clipped estimator this replaced was biased low by an amount that grew with the
+    scatter -- 0.2195 against a true 0.25 at 50% scatter, and 25-30% low on real archived cubes --
+    because a 5-sigma cut on a lognormal removes genuine tail, not just dropouts.
+    """
+    rng = np.random.default_rng(30)
+    sigma = np.sqrt(np.log(1.0 + scatter**2))
+    ratio = 0.75 * rng.lognormal(mean=-0.5 * sigma**2, sigma=sigma, size=200000)
+
+    assert scint_index(ratio) == pytest.approx(scatter**2, rel=0.02)
 
 
 def test_the_index_is_scale_free():
@@ -164,18 +188,27 @@ def test_a_few_dropout_frames_do_not_take_over_the_index():
     spiked[hit] *= rng.uniform(50, 3000, size=hit.size)   # denominator nearly vanished
 
     assert clean == pytest.approx(0.09, rel=0.15), "sanity: 30% scatter gives an index near 0.09"
+    assert spiked.var() / spiked.mean() ** 2 > 100, "sanity: the plain variance is destroyed"
     assert scint_index(spiked) == pytest.approx(clean, rel=0.15)
 
 
-def test_the_index_reports_what_fraction_it_rejected():
+def test_only_unusable_frames_are_rejected_from_the_index():
+    """
+    Nothing is discarded for being an outlier -- a robust *scale* handles those without deleting
+    them. Only frames that cannot be put on a log scale at all are dropped: a ratio that is zero,
+    negative or not finite, which means an aperture measured no flux.
+    """
     ratio = scintillating_ratio()
-    spiked = ratio.copy()
-    rng = np.random.default_rng(32)
-    hit = rng.choice(len(spiked), size=len(spiked) // 100, replace=False)
-    spiked[hit] *= rng.uniform(50, 3000, size=hit.size)
+    assert scint_index(ratio, return_rejected=True)[1] == 0.0
 
-    assert scint_index(ratio, return_clipped=True)[1] < 0.01
-    assert scint_index(spiked, return_clipped=True)[1] == pytest.approx(0.01, abs=0.005)
+    unusable = ratio.copy()
+    unusable[:200] = 0.0        # aperture measured nothing
+    unusable[200:300] = -1.0    # background over-subtracted past zero
+    unusable[300:350] = np.nan
+
+    index, frac = scint_index(unusable, return_rejected=True)
+    assert frac == pytest.approx(350 / len(ratio), rel=1e-6)
+    assert index == pytest.approx(scint_index(ratio), rel=0.05)
 
 
 def ar1(n, rho, rng):
@@ -355,7 +388,7 @@ def test_stats_has_exactly_the_expected_keys():
     assert set(stats) == {
         "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "tau_scint_censored",
         "acf1_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright", "mean_flux_faint",
-        "frac_clipped",
+        "frac_rejected",
     }
 
 
@@ -369,7 +402,7 @@ def test_dropout_frames_are_reported_not_just_removed():
 
     stats = scintillation_stats(results)
 
-    assert stats["frac_clipped"] == pytest.approx(0.01, abs=0.006)
+    assert stats["frac_rejected"] == 0.0
     assert stats["scint_index_raw"] < 1.0, "the dropouts must not run away with the index"
 
 
@@ -520,7 +553,7 @@ def test_flux_statistics_survive_a_cube_with_no_usable_timestamps():
     assert np.isfinite(stats["throughput"])
     assert np.isfinite(stats["scint_index_raw"])
     assert np.isfinite(stats["mean_flux_bright"])
-    assert np.isfinite(stats["frac_clipped"])
+    assert np.isfinite(stats["frac_rejected"])
     assert stats["n_kept"] == 2000
 
 
