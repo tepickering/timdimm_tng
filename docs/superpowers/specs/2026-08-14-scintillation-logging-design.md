@@ -297,3 +297,31 @@ answers; no test depends on archived data being present.
 - Shot-noise correction of the scintillation index.
 - Joining to the Adafruit humidity log. The columns needed to do it are logged; the analysis is not
   part of this.
+
+## As built
+
+The design above is left as it was written. Four things changed during implementation, and the code
+is the authority where they disagree:
+
+- **The index is estimated in log space.** The schema table says `var(r)/mean(r)**2`; what shipped
+  first was that variance over 5-sigma-clipped frames, and what is there now is `exp(sigma**2) - 1`
+  with `sigma` from the MAD of `log(ratio)`. Same quantity, exactly, for the lognormal the ratio is —
+  but robust and unbiased at once, where the clip was robust and biased low. `docs/scintillation_logging_notes.md`
+  has the evidence that condemned the clipped version.
+- **The correlations run on the log ratio, robustly cut.** `acf1_ratio` and the `tau_scint` fit use
+  `log_ratio_series`, which drops frames beyond 5 MAD-sigma of the median log ratio. Pearson
+  correlation is not robust, so a dropout frame that the index shrugs off could still censor a
+  genuinely correlated cube. Same notes file, "The autocorrelation needs the opposite treatment".
+- **Two columns were added:** `frac_rejected`, the fraction of frames with no usable logarithm, and
+  `airmass`, which the index cannot be interpreted without — it goes as roughly sec(z)**3 while the
+  seeing `analyze_dimm_cube` reports has already been divided by `airmass**0.6`. `airmass` is written
+  at the 3 decimals `seeing.csv` uses.
+- **A cube with unusable timestamps yields a partial row rather than nothing.** The failure table
+  above has no entry for `dt` being NaN, and the first implementation suppressed every stat. Only
+  the two time constants need a frame interval; throughput and the index need frame *order*, so
+  those are still written.
+
+Seeing validity (`seeing_is_valid`, `DIMM_IMAGE_SHAPE`, `MIN_CADENCE_HZ`) was outside this spec
+entirely, and arrived from the archive run: cubes that cannot measure seeing were writing
+sub-arcsecond values to `seeing.csv`. It gates only the `seeing.csv` write; the scintillation row is
+written for any cube.
