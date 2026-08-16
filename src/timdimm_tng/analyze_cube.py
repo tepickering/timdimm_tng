@@ -24,6 +24,41 @@ from photutils.segmentation import SourceFinder, make_2dgaussian_kernel, SourceC
 from photutils.aperture import ApertureStats, CircularAperture
 
 from timdimm_tng.ser import load_ser_file
+from timdimm_tng.scintillation import median_dt
+
+
+#: The ROI the DIMM plate scale assumes.
+DIMM_IMAGE_SHAPE = (400, 400)
+
+#: A seeing measurement needs an exposure short enough to freeze the image motion; a longer one
+#: averages over it and the baseline scatter stops being seeing. The rate is a proxy for the
+#: exposure, and any rate above this is fast enough -- the archive holds good nights at 253, 299 and
+#: 381 Hz. Falling below it in production is itself the alert: it means the camera came up on a
+#: USB 2.x bus and is not running at the rate it was configured for.
+MIN_CADENCE_HZ = 200.0
+
+
+def seeing_is_valid(image_shape, cadence_hz):
+    """
+    Is this cube's configuration one that a seeing value can be taken from?
+
+    Advisory, not fatal. The flux statistics -- prism throughput above all -- are perfectly good on a
+    cube of any shape or rate, so an off-nominal cube is still worth analysing; it is only the seeing
+    that must not be logged. The archive's slow test cubes are the source of the surviving
+    sub-arcsecond seeing values, which no lower bound on the seeing itself separates cleanly.
+
+    Parameters
+    ----------
+    image_shape : tuple
+        ``(height, width)`` of one frame.
+    cadence_hz : float
+        Frame rate measured from the timestamps, standing in for the exposure time. NaN when the
+        timestamps are unusable, which is not valid: an unknown rate is not evidence of a fast one.
+    """
+    if tuple(image_shape) != DIMM_IMAGE_SHAPE:
+        return False
+    return bool(np.isfinite(cadence_hz) and cadence_hz >= MIN_CADENCE_HZ)
+
 
 warnings.filterwarnings("ignore", module="erfa")
 
@@ -168,13 +203,16 @@ def find_apertures(
     convolved_data = astropy.convolution.convolve(data, kernel)
     finder = SourceFinder(n_pixels=15, deblend=deblend, progress_bar=False)
     segment_map = finder(convolved_data, threshold)
+    if segment_map is None:
+        # SourceFinder returns None rather than an empty map when nothing is above threshold.
+        # Passing that to SourceCatalog raises "segmentation_image must be a SegmentationImage",
+        # which is what six archived cubes of faint targets fail with.
+        raise ValueError(f"No sources detected in image at threshold {threshold:.1f}")
+
     t = SourceCatalog(data, segment_map, convolved_data=convolved_data).to_table()
     t.sort("max_value")
     stars = t[-brightest:]
     stars.sort("x_centroid")
-
-    if stars is None:
-        raise Exception("No stars detected in image")
 
     positions = list(zip(stars["x_centroid"], stars["y_centroid"]))
     apertures = CircularAperture(positions, r=ap_size)
@@ -277,6 +315,14 @@ def dimm_calc(data, aps):
 
     baseline = ap_pos[1] - ap_pos[0]
     dist_baseline = np.sqrt(np.dot(baseline.T, baseline))
+
+    # Two centroids closer together than half an aperture are the same star found twice, not a
+    # baseline. Letting them through produces a baseline of zero, and a cube full of those reports
+    # a seeing of exactly 0.00 arcsec -- which passes the `seeing < 10.0` quality gate downstream.
+    # hdimm_calc calls the same condition "overlapped".
+    if not np.isfinite(dist_baseline) or dist_baseline < 0.5 * aps.r:
+        return None
+
     return new_aps, [dist_baseline], ap_stats.sum
 
 
@@ -324,9 +370,22 @@ def analyze_dimm_cube(
         plot=plot,
     )
 
+    # find_apertures returns however many sources it found, up to `brightest`. Too few is not fatal:
+    # dimm_calc re-detects per frame at a lower threshold and feeds the recovered positions forward,
+    # which genuinely rescues faint cubes -- two archived ones keep 95% of their frames that way.
+    # The degenerate case is caught downstream instead, by dimm_calc rejecting a zero-length
+    # baseline and by the bad-frame limit below.
+    if len(apertures.positions) != napertures:
+        warnings.warn(
+            f"Found {len(apertures.positions)} apertures in the reference image, expected "
+            f"{napertures}. Relying on per-frame re-detection.",
+            UserWarning,
+        )
+
     baselines = []
     positions = []
     fluxes = []
+    kept = []
     nbad = 0
 
     frame_meds = np.median(cube["data"], axis=(1, 2))
@@ -344,14 +403,22 @@ def analyze_dimm_cube(
             baselines.append(ap_distances)
             positions.append(apertures.positions.mean(axis=0))
             fluxes.append(ap_fluxes)
+            kept.append(i)
         else:
             nbad += 1
 
         if nbad > 100:
             raise Exception("Hit 100 bad frame limit.")
 
+    if not baselines:
+        raise ValueError(
+            f"No frames yielded a usable baseline: {len(apertures.positions)} apertures in the "
+            f"reference image, all {nbad} frames rejected."
+        )
+
     baselines = np.array(baselines).transpose()
     positions = np.array(positions).transpose()
+    kept = np.array(kept, dtype=int)
 
     seeing_vals = []
     for baseline in baselines:
@@ -361,14 +428,22 @@ def analyze_dimm_cube(
 
     ave_seeing = u.Quantity(seeing_vals).mean()
 
+    image_shape = tuple(cube["data"].shape[1:])
+    dt = median_dt(cube["frame_times"])
+    cadence_hz = 1.0 / dt if np.isfinite(dt) and dt > 0 else float("nan")
+
     return {
         "seeing": ave_seeing,
+        "seeing_valid": seeing_is_valid(image_shape, cadence_hz),
+        "image_shape": image_shape,
+        "cadence_hz": cadence_hz,
         "raw_seeing": seeing_vals,
         "baseline_lengths": baselines,
         "aperture_positions": positions,
         "aperture_fluxes": fluxes,
         "frame_times": cube["frame_times"],
         "N_bad": nbad,
+        "frame_index": kept,
         "aperture_plot": fig,
     }
 

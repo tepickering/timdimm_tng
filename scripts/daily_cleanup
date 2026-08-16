@@ -11,10 +11,16 @@ TABLE=$HOME/analyze_pictures.ecsv
 CACHE=$HOME/.analyze_pictures_cache
 
 # snapshot the frames that exist right now, so anything written while the analysis runs is left
-# alone and picked up by the next cleanup rather than deleted unmeasured
+# alone and picked up by the next cleanup rather than deleted unmeasured.
+#
+# This must match analyze_pictures' find_images exactly: both extensions, and only the
+# <target>/<imagetype>/<frame> depth it globs. A wider match here would delete frames that were
+# never measured; a narrower one leaves them to accumulate forever, which is what -name "*.fits"
+# alone did -- and with every frame gzipped it also left $FRAMES empty, so the guard below exited
+# before analyze_pictures ever ran.
 FRAMES=$(mktemp)
 trap 'rm -f "$FRAMES"' EXIT
-find "$PICTURES" -name "*.fits" -print0 > "$FRAMES"
+find "$PICTURES" -mindepth 3 -maxdepth 3 \( -name "*.fits" -o -name "*.fits.gz" \) -print0 > "$FRAMES"
 
 if [ ! -s "$FRAMES" ]; then
     echo "no new frames under $PICTURES"

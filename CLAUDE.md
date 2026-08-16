@@ -86,3 +86,36 @@ After installation, these commands are available:
 Defined in `locations.py`:
 - MMTO: Arizona (-110:53:04.4, 31:41:19.6, 2600m)
 - SAAO: South Africa (20:48:38.4, -32:22:33.6, 1798m)
+
+## Camera
+
+ZWO ASI432MM (Sony IMX432). Seeing cubes are **400x400 at 299.25 Hz**; anything slower does not
+freeze the image motion, which is why `analyze_cube.seeing_is_valid()` gates the seeing on
+`DIMM_IMAGE_SHAPE` and `MIN_CADENCE_HZ`. Real nights also exist at 253 and 381 Hz.
+
+**The ADC is 12-bit and the driver left-shifts by 4 into uint16**, so every stored pixel value is a
+multiple of 16 and full scale is 4095 ADU. Forgetting the shift inflates derived electron counts by
+16x. Detect it rather than assume it.
+
+### Gain and offset history
+
+Settings are set and left, not tuned per target. Read from the `GAIN`/`OFFSET` FITS keywords:
+
+| epoch | GAIN | OFFSET |
+|---|---|---|
+| through 2025-10-09 | 350 | 10 |
+| 2025-11-11 onward | **200** | **1** |
+
+`GAIN` is ZWO's gain **index in units of 0.1 dB**, not e-/ADU. It converts as:
+
+```python
+egain_12bit = (97000 / 2**12) * 10 ** (-gain / 200)   # 23.68 e-/ADU at gain 0
+egain       = egain_12bit / 16                        # e- per stored count
+```
+
+At the current gain 200 that is 2.368 e-/ADU_12. Anchored on the gain-0 intercept
+`23.68 = full well / 2**12`, where ZWO's EGAIN and full-well curves agree, rather than on the
+published unity gain of 272 — the intercept makes the whole curve match rather than one point.
+
+Offset 1 is low but does not clip the black level: measured pixel histograms run smoothly down to
+1 ADU_12 with nothing piled up at zero.
