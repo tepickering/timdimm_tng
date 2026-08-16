@@ -130,6 +130,60 @@ def scint_index(ratio, return_rejected=False):
 #: A lag with fewer contributing pairs than this is not trusted, and not used in a fit.
 MIN_PAIRS = 30
 
+#: How far from the median a log ratio may sit, in MAD-based sigma, and still enter a correlation.
+ACF_CLIP_SIGMA = 5.0
+
+
+def log_ratio_series(ratio, index, clip_sigma=ACF_CLIP_SIGMA):
+    """
+    The log flux ratio and its frame indices, with dropout frames removed.
+
+    The series the correlations are built on, and deliberately not the one ``scint_index`` uses.
+    Pearson correlation is not robust: a single frame whose bright aperture nearly vanished has a
+    ratio in the thousands but is still finite and still positive, so nothing else rejects it, and
+    being isolated it appears in one lag-1 pair as a huge excursion with an ordinary neighbour. That
+    one pair can pull rho(1) on a genuinely correlated cube from 0.75 to near zero, which is logged
+    as ``tau_scint_censored = 1`` beside a ``frac_rejected`` of 0.0 -- a false measurement wearing
+    the badge of a clean cube.
+
+    Clipping here does not repeat the mistake that clipping made in ``scint_index``. There the cut
+    biased the answer because the statistic *is* the scale of the distribution, and cutting its tail
+    shrinks it. A correlation is a shape statistic on a fixed set of pairs; dropping 1% of frames at
+    5 robust sigma removes dropouts and leaves the decay it measures alone.
+
+    Working in the log is the other half of it, and is the natural space anyway: scintillation is
+    multiplicative, so the log ratio is the additive quantity whose autocorrelation has a meaning.
+
+    Parameters
+    ----------
+    ratio : array-like
+        Per-frame flux ratio, one entry per surviving frame.
+    index : array-like of int
+        Cube frame index of each entry.
+    clip_sigma : float
+        Robust cut, in units of ``mad_std`` of the log ratio. A non-positive value disables it.
+
+    Returns
+    -------
+    log_ratio, index : ~numpy.ndarray
+        The surviving values and *their* frame indices, still paired. Empty arrays if fewer than
+        two frames are usable.
+    """
+    ratio = np.asarray(ratio, dtype=float)
+    index = np.asarray(index, dtype=int)
+
+    usable = np.isfinite(ratio) & (ratio > 0.0)
+    if usable.sum() < 2:
+        return np.empty(0), np.empty(0, dtype=int)
+
+    log_ratio, index = np.log(ratio[usable]), index[usable]
+    sigma = stats.mad_std(log_ratio)
+    if clip_sigma > 0 and np.isfinite(sigma) and sigma > 0:
+        keep = np.abs(log_ratio - np.median(log_ratio)) <= clip_sigma * sigma
+        log_ratio, index = log_ratio[keep], index[keep]
+
+    return log_ratio, index
+
 
 def lag_autocorr(x, index, lag):
     """
@@ -280,7 +334,10 @@ def scintillation_stats(results):
     ratio = flux_ratio(bright, faint)
     stats["scint_index_raw"], stats["frac_rejected"] = scint_index(ratio, return_rejected=True)
 
-    acf1, npairs = lag_autocorr(ratio, index, 1)
+    # the correlations run on the log ratio with dropouts removed; scint_index above keeps every
+    # usable frame because a robust *scale* does not need them removed, but Pearson correlation does
+    log_ratio, ratio_index = log_ratio_series(ratio, index)
+    acf1, npairs = lag_autocorr(log_ratio, ratio_index, 1)
     stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
 
     # Everything above is dimensionless and needs only the frame *order*. Everything below is a time
@@ -296,7 +353,7 @@ def scintillation_stats(results):
     stats["tau_motion_ms"] = tau_motion * 1000.0 if np.isfinite(tau_motion) else float("nan")
 
     if np.isfinite(acf1) and acf1 >= ACF1_CENSOR_THRESHOLD:
-        tau_scint = fit_tau(ratio, index, dt)
+        tau_scint = fit_tau(log_ratio, ratio_index, dt)
         stats["tau_scint_ms"] = tau_scint * 1000.0 if np.isfinite(tau_scint) else float("nan")
     elif np.isfinite(acf1):
         # decorrelated within one frame: the time constant is below the sampling interval

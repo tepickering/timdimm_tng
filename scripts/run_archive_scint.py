@@ -9,7 +9,8 @@ computed up to that point and ``--resume`` picks up where it stopped.
 Cubes are copied into a scratch directory before being read, and the copy is deleted afterwards.
 ``load_ser_file`` opens files ``"r+b"``, and an archive is not something to point a read-write open
 at. Use ``--in-place`` to skip the copy if the archive is on slow or crowded storage; the run is
-then read-write against the originals.
+then read-write against the originals. Gzipped cubes are staged either way -- they have to be
+expanded before they can be parsed, and that is the same code path as the copy.
 
 Typical use:
 
@@ -56,7 +57,8 @@ def parse_args(argv=None):
     parser.add_argument("--resume", action="store_true",
                         help="append to an existing output, skipping cubes already in it")
     parser.add_argument("--in-place", action="store_true",
-                        help="read cubes directly instead of copying them first")
+                        help="read uncompressed cubes directly instead of copying them first; "
+                             ".ser.gz is still expanded into scratch")
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many cubes, for a quick look")
     return parser.parse_args(argv)
@@ -122,10 +124,14 @@ def main(argv=None):
                 "cube": path.name.replace(".ser.gz", "").replace(".ser", ""),
                 "path": str(path),
             }
+            # --in-place skips the *copy*, but a gzipped cube still has to be expanded somewhere:
+            # load_ser_file parses raw SER bytes and cannot read a compressed stream, so an
+            # unstaged .ser.gz would be recorded as a failure rather than analyzed
+            staged = path.suffix == ".gz" or not args.in_place
+
             start = time.time()
             try:
-                target = path if args.in_place else stage(path, work)
-                results = analyze_dimm_cube(target)
+                results = analyze_dimm_cube(stage(path, work) if staged else path)
                 row["seeing"] = round(float(results["seeing"].value), 3)
                 row["seeing_valid"] = int(results["seeing_valid"])
                 row["image_shape"] = "x".join(str(n) for n in results["image_shape"])
@@ -137,7 +143,7 @@ def main(argv=None):
                 # finder is a normal thing to meet in an archive and must not stop the run
                 row["status"] = f"{type(exc).__name__}: {exc}"[:120]
             finally:
-                if not args.in_place:
+                if staged:
                     work.unlink(missing_ok=True)
 
             row["elapsed_s"] = round(time.time() - start, 1)

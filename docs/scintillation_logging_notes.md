@@ -159,6 +159,26 @@ Recovery on synthetic lognormal series is exact to better than 1% at 10, 20, 30 
 Only frames with a ratio that is zero, negative or non-finite are dropped — they have no logarithm —
 and the count is logged as `frac_rejected`, which replaces `frac_clipped`.
 
+### The autocorrelation needs the opposite treatment
+
+Making the index robust left `acf1_ratio` exposed, because it is a Pearson correlation and Pearson
+is not robust. A dropout frame's ratio is in the thousands but still finite and still positive, so
+nothing rejects it, and being isolated it enters one lag-1 pair as an enormous excursion beside an
+ordinary neighbour. On a synthetic cube with 1% such frames, rho(1) falls from 0.75 to near zero —
+logged as `tau_scint_censored = 1` beside a `frac_rejected` of **0.0**, which reads as a clean cube.
+
+So the correlations run on `log_ratio_series`: the log of the ratio, with frames beyond
+`ACF_CLIP_SIGMA = 5` robust sigma of its median removed. Clipping here is not the mistake clipping
+made in the index. There the statistic *is* the scale of the distribution, so cutting the tail
+shrinks the answer; a correlation is a shape statistic on a fixed set of pairs, and removing 1% of
+frames leaves the decay alone. The log is the natural space regardless — scintillation is
+multiplicative, so the log ratio is the additive quantity whose autocorrelation means something.
+
+On clean real cubes the change is small and the conclusion unaffected: rho(1) moves 0.103 to 0.129
+(2024-05-05 01:57), 0.126 to 0.145 and 0.050 to 0.052 (2026-08-16), with 0 to 3 frames of 4400
+dropped. All remain far below `ACF1_CENSOR_THRESHOLD`, so scintillation is still unresolved at
+299 Hz — the point of the fix is the cube that *isn't* clean.
+
 ## A cross-check worth noting
 
 The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from

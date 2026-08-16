@@ -133,6 +133,9 @@ if not seeing_data['seeing_valid']:
         f"{seeing_data['cadence_hz']:.1f} Hz, not {DIMM_IMAGE_SHAPE} at the "
         f"{MIN_CADENCE_HZ:.0f} Hz minimum seeing needs. Check the camera's USB connection."
     )
+    # moved aside like every other rejected cube: the next exposure records to this same fixed
+    # filename, so leaving it here throws away the one cube that shows what the camera was doing
+    os.system("mv ~/seeing.ser ~/last_bad_seeing.ser")
 elif np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
     if seeing_data['N_bad'] < 50:

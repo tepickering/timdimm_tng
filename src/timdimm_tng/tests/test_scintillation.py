@@ -22,6 +22,7 @@ from timdimm_tng.scintillation import (
     fit_tau,
     flux_ratio,
     lag_autocorr,
+    log_ratio_series,
     median_dt,
     scint_index,
     scintillation_stats,
@@ -210,6 +211,35 @@ def test_only_unusable_frames_are_rejected_from_the_index():
     index, frac = scint_index(unusable, return_rejected=True)
     assert frac == pytest.approx(350 / len(ratio), rel=1e-6)
     assert index == pytest.approx(scint_index(ratio), rel=0.05)
+
+
+def test_the_log_ratio_series_keeps_every_clean_frame_and_its_index():
+    ratio = scintillating_ratio(n=2000)
+    index = np.arange(0, 4000, 2)
+
+    log_ratio, kept_index = log_ratio_series(ratio, index)
+
+    np.testing.assert_allclose(log_ratio, np.log(ratio))
+    np.testing.assert_array_equal(kept_index, index)
+
+
+def test_the_log_ratio_series_drops_dropouts_and_the_indices_that_go_with_them():
+    """
+    The index it returns has to stay paired with the values: lag_autocorr matches frames by cube
+    index, so dropping a sample without dropping its index would pair every later frame with the
+    wrong one.
+    """
+    ratio = scintillating_ratio(n=2000)
+    index = np.arange(2000)
+    spiked = ratio.copy()
+    spiked[500] *= 3000.0    # denominator nearly vanished
+    spiked[900] = 0.0        # aperture measured nothing
+    spiked[1300] = np.nan
+
+    log_ratio, kept_index = log_ratio_series(spiked, index)
+
+    assert set(index) - set(kept_index) == {500, 900, 1300}
+    np.testing.assert_allclose(log_ratio, np.log(ratio)[kept_index])
 
 
 def ar1(n, rho, rng):
@@ -473,6 +503,33 @@ def test_a_resolved_scintillation_time_constant_is_fitted_and_not_censored():
     assert stats["tau_scint_censored"] == 0
     assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD
     assert stats["tau_scint_ms"] == pytest.approx(12.0, rel=0.2)
+
+
+def test_dropouts_do_not_censor_a_resolved_scintillation_time_constant():
+    """
+    The same dropouts scint_index shrugs off used to destroy the autocorrelation beside it. A frame
+    whose bright aperture nearly vanished has a ratio in the thousands but is still finite and still
+    positive, so it survives into the correlation and, being isolated, drags rho(1) towards zero:
+    a genuinely correlated cube gets logged as censored with frac_rejected reading 0.0, which says
+    nothing went wrong. Both statistics have to be robust, not just the one.
+    """
+    rho = np.exp(-DT / 12.0e-3)
+    clean = scintillation_stats(fake_results(ratio_rho=rho, seed=22))
+
+    results = fake_results(ratio_rho=rho, seed=22)
+    fluxes = [f.copy() for f in results["aperture_fluxes"]]
+    rng = np.random.default_rng(33)
+    for i in rng.choice(len(fluxes), size=len(fluxes) // 100, replace=False):
+        fluxes[i][0] /= rng.uniform(50, 3000)    # bright aperture nearly vanished
+    results["aperture_fluxes"] = fluxes
+
+    spiked = scintillation_stats(results)
+
+    assert spiked["frac_rejected"] == 0.0, "sanity: the dropouts are finite and positive"
+    assert clean["acf1_ratio"] > ACF1_CENSOR_THRESHOLD, "sanity: the clean cube is correlated"
+    assert spiked["acf1_ratio"] == pytest.approx(clean["acf1_ratio"], rel=0.15)
+    assert spiked["tau_scint_censored"] == 0
+    assert spiked["tau_scint_ms"] == pytest.approx(clean["tau_scint_ms"], rel=0.25)
 
 
 def test_too_few_kept_frames_gives_nan_stats_but_still_reports_the_counts():
