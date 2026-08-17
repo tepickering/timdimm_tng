@@ -4,8 +4,11 @@ Starting point for a spec, not a design. Records what has been decided, what has
 measured, and the open questions — so the spec can be written in a fresh session alongside the
 reference papers.
 
-Nothing here is implemented. An exploratory implementation of the first two values was written and
-reverted; its findings are kept below because they constrain the design.
+The first four values ship in `src/timdimm_tng/scintillation.py` and are logged to
+`~/scintillation.csv` in production as of 2026-08-16; the spec is
+`docs/superpowers/specs/2026-08-14-scintillation-logging-design.md`. Findings from the exploratory
+implementation that preceded it are kept below because they constrain the design, and the later
+sections record what the first night on sky and the reference papers have since changed.
 
 ## What we want
 
@@ -218,6 +221,119 @@ to come from many nights, where a given target recurs at different airmasses.
 
 `corr(index, seeing)` was +0.283 pooled over the night, the same weak value the archive gives.
 
+## Kornilov 2011: get the timescale from the index, not from its decay
+
+V. Kornilov, *Stellar scintillation in short exposure regime and atmospheric coherence time
+evaluation*, A&A, arXiv:1103.6265. This is the MASS temporal theory. It is **not** a profile
+restoration paper — that is Tokovinin et al. 2003 and Kornilov et al. 2007, which it cites — but it
+bears directly on the time constants we log, and it says our estimator is the wrong shape.
+
+Its central result is that a finite exposure `tau` low-passes the scintillation and depresses the
+index quadratically (Eq. 4):
+
+    s_tau^2 = s_0^2 - (tau^2 / 6) * V2U,    V2U = integral Cn2(h) * w(h)^2 * U(h) dh
+
+so measuring the index at two exposures yields the wind moment with no need to resolve anything
+(Eq. 10), and with `r0` from the DIMM, Eq. 14 gives the atmospheric coherence time
+`tau_0 = 0.314 * r0 / V2bar`. The timescale is read off *how much the index shrinks* when you
+integrate longer. There is no sampling floor to fight — which is the entire problem with the
+`fit_tau` approach, where 12% of rows on 2026-08-16 cleared the one-frame gate.
+
+**Interleaved exposures are not available to us.** Exposure cannot be varied within a single SER
+capture, and alternating between cubes leaves enough gap time for conditions to change, so the two
+indices would not describe the same atmosphere. Eq. 8/9, which synthesise the 2*tau index from
+adjacent frames, do not rescue this either: they require exposures that tile the time axis
+contiguously, and at 1 ms exposure on a 3.342 ms cadence our duty cycle is **0.299**. Summing
+adjacent frames gives two 1 ms samples 3.3 ms apart, not one 2 ms exposure.
+
+### The same quantity is reachable from two lags of the autocorrelation
+
+An exposure and a lag are two ways of applying a known low-pass filter, and to second order both
+read the same second spectral moment `M2 = integral f^2 S(f) df`:
+
+    exposure:  s_tau^2  = s_0^2 - (pi^2 tau^2 / 3) M2      matching Eq. 4 gives V2U = 2 pi^2 M2
+    lag:       cov(D)   = s_0^2 - 2 pi^2 D^2 M2
+
+Differencing the index against the covariance gives `V2U = s^2 (1 - rho_1) / D^2`, where `D` is the
+frame interval. That form is worthless in practice: white photon noise adds to `s^2` but to no
+nonzero lag, so it enters the estimate at full weight. Differencing **two lags** instead removes it
+completely:
+
+    V2U = s^2 * (rho_1 - rho_2) / (3 D^2)
+
+The exposure filter cancels at this order, so the measured index and measured correlations go in
+directly, with no zero-exposure correction. Verified numerically on synthetic series of 4400 frames
+with a Gaussian ACF (200 seeds; an AR(1) is useless as a test here — its ACF has a cusp at zero lag,
+so its `M2` diverges):
+
+| true T | D/T | recovered, no noise | with equal-power white noise | 5-95 with noise |
+|---|---|---|---|---|
+| 8 ms | 0.42 | -19% | -20% | 471 - 671 (truth 703) |
+| 15 ms | 0.22 | -5.8% | -6.3% | 106 - 278 (truth 200) |
+| 30 ms | 0.11 | -0.5% | -3.8% | -38 - 130 (truth 50) |
+
+Two things to read off that table. The bias is the quadratic truncation and scales as `(D/T)^2`, so
+the method needs `D << T` — the direct analogue of Kornilov's short-exposure regime, and the reason
+his Eq. 5/6 check matters. And **photon noise costs precision, not accuracy**: the median barely
+moves, while the 5-95 spread widens until the estimate can go negative. That is the same trade
+Kornilov names for DESI in §9, which is "noisier by an order of magnitude" for working with small
+differences.
+
+### What this needs before it can be tried
+
+- **`acf2_ratio` must be logged.** We record only `acf1_ratio`, so the estimator cannot be evaluated
+  on 2026-08-16 retrospectively. One column, and `scintillation.csv` is not frozen — `seeing.csv` is.
+- **Photon noise still has to be handled**, even though the estimator is immune in the median. The
+  spread above is what an equal-power noise term does to a single cube, and our shot-noise term is
+  worth ~31% of the median index. This is Kornilov's §9 warning: *"The most dangerous is a systematic
+  error due to an incorrect accounting for photon noise."*
+- **Absolute `tau_0` needs `U(h)` for our aperture**, from the Eq. 2 integral (Bessel J0/J1 and
+  Struve H0/H1, Eq. 3) and the decomposition coefficients of his Appendix A. Without it the estimator
+  gives a *relative* wind moment that can be tracked and correlated, but not a coherence time in ms.
+
+### Our optics, and what they permit
+
+timDIMM is `D = 50 mm` with a `200 mm` baseline (`timdimm_seeing`, `analyze_cube.py:173`) — **not**
+the 76.2 mm / 143 mm defaults of `seeing()`, which belong to another configuration. At 500 nm:
+
+| h | r_F = sqrt(lambda h) | D/r_F | b/r_F |
+|---|---|---|---|
+| 1 km | 2.2 cm | 2.24 | 8.94 |
+| 2 km | 3.2 cm | 1.58 | 6.32 |
+| 5 km | 5.0 cm | 1.00 | 4.00 |
+| 10 km | 7.1 cm | 0.71 | 2.83 |
+| 15 km | 8.7 cm | 0.58 | 2.31 |
+| 20 km | 10.0 cm | 0.50 | 2.00 |
+
+`D/r_F` runs 0.5 to 1.0 through the whole free atmosphere and exceeds 1 only below ~5 km, so we sit
+on the **small-aperture** side. Neither of Kornilov's asymptotes applies: not `D >> r_F`
+(`U(h) ~ 17.22 lambda^-2/3 D^-3 h^4/3`), and not the point aperture, for which he notes no asymptote
+exists at all since the integral diverges as `D -> 0`. Consequences: little aperture averaging, hence
+a large index — consistent with the 0.11 to 0.40 we measure — and an altitude weighting tending
+towards the point-source `h^5/6` rather than `h^2`, so the free atmosphere is weighted *less*
+strongly than the large-aperture case. 50 mm falls between MASS apertures B (3.7 cm) and C (7 cm),
+which also implies we fall out of the short-exposure regime somewhat more often than MASS aperture C
+does: smaller apertures are more sensitive to turbulence motion, and his Table 1 gives 12.5% (B) and
+6.3% (C) out of SE at 2 ms.
+
+**Our index is not one of Kornilov's cross-indices.** MASS cross-indices are between *concentric*
+apertures of differing diameter sharing one pupil. Ours are two *equal* 50 mm apertures separated
+laterally by 200 mm, a geometry that does not appear in the paper, so neither his Fig. 1 weighting
+functions nor the remark that cross-indices go negative at low altitude transfers to us. The
+weighting function we would need is `W_diff(h) = 2 W(h) [1 - C(b,h)/C(0,h)]` with `C` the spatial
+covariance of the intensity, derived for our configuration. On the credit side `b/r_F` is 2.0 to 4.0
+in the free atmosphere and ~9 at 1 km, so the two apertures are well decorrelated and
+`var(log ratio) ~ 2 sigma^2` is a fair working approximation, improving towards low altitude.
+
+**One aperture diameter means one moment, not a profile.** MASS inverts a profile because four
+concentric apertures give ten indices; we have a single diameter, hence a single weighting function,
+hence a single number. No processing changes that. What we can do without new hardware is combine two
+differently-weighted integrals we already measure at the same instant on the same star — seeing gives
+`integral Cn2 dh`, the index gives a higher-weighted moment — and form an effective turbulence
+height. One number rather than a profile, but it is the number that says ground layer or free
+atmosphere. The `h^5/6` weighting above makes that lever weaker than a large aperture would give, and
+how much weaker is the `W(h)` calculation, not a guess.
+
 ## A cross-check worth noting
 
 The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from
@@ -267,5 +383,11 @@ the samples are contiguous.
 
 ## Reference papers
 
-To be added — Tim has papers to bring to the spec session. `seeing()` already cites Tokovinin
-(2002), https://www.jstor.org/stable/10.1086/342683, for the DIMM equations.
+- Tokovinin (2002), https://www.jstor.org/stable/10.1086/342683 — the DIMM equations `seeing()`
+  already cites.
+- Kornilov (2011), arXiv:1103.6265, A&A — stellar scintillation in the short exposure regime and
+  `tau_0` evaluation. See the section above for what it changes here.
+- Cited by the above and not yet read, for when the weighting functions are needed: Tokovinin et al.
+  (2003), MNRAS 343, 891 and Kornilov et al. (2007), MNRAS 382, 1268 for the MASS profile
+  restoration and the `W(h)` set; Kornilov (2011), arXiv:1101.3211 for the long-exposure regime and
+  the `A_s` spectral filter.
