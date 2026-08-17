@@ -17,6 +17,10 @@ from timdimm_tng.scintillation import (
     CSV_COLUMNS,
     CSV_HEADER,
     MIN_KEPT,
+    TAU_CENSORED,
+    TAU_FIT_FAILED,
+    TAU_FITTED,
+    ensure_header,
     format_row,
     assign_apertures,
     fit_tau,
@@ -418,9 +422,30 @@ def test_stats_has_exactly_the_expected_keys():
 
     assert set(stats) == {
         "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "tau_scint_censored",
-        "acf1_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright", "mean_flux_faint",
-        "frac_rejected",
+        "acf1_ratio", "acf2_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright",
+        "mean_flux_faint", "frac_rejected",
     }
+
+
+def test_the_second_lag_correlation_is_logged():
+    """
+    An AR(1) ratio decays as rho**lag, so lag 2 is the square of lag 1. Logged because the wind
+    moment follows from the *difference* of two lags -- white photon noise adds to the variance but
+    to no non-zero lag, so s**2 * (rho1 - rho2) / (3 dt**2) is immune to it where a single lag is
+    not. See the Kornilov 2011 section of docs/scintillation_logging_notes.md.
+    """
+    rho = 0.6
+    stats = scintillation_stats(fake_results(ratio_rho=rho, n=40000))
+
+    assert stats["acf1_ratio"] == pytest.approx(rho, abs=0.03)
+    assert stats["acf2_ratio"] == pytest.approx(rho**2, abs=0.03)
+
+
+def test_the_second_lag_is_withheld_when_there_are_too_few_pairs():
+    """Same rule as lag 1: a correlation over a handful of pairs is noise wearing a number."""
+    stats = scintillation_stats(fake_results(n=MIN_KEPT + 5, nbad=4000))
+
+    assert np.isnan(stats["acf2_ratio"])
 
 
 def test_dropout_frames_are_reported_not_just_removed():
@@ -491,7 +516,7 @@ def test_an_unresolved_scintillation_time_constant_is_censored():
     """What a real 299 Hz cube does: the flux ratio decorrelates in one frame."""
     stats = scintillation_stats(fake_results(ratio_rho=0.0))
 
-    assert stats["tau_scint_censored"] == 1
+    assert stats["tau_scint_censored"] == TAU_CENSORED
     assert stats["tau_scint_ms"] == pytest.approx(DT * 1000.0, rel=0.01)
     assert abs(stats["acf1_ratio"]) < ACF1_CENSOR_THRESHOLD
 
@@ -500,9 +525,69 @@ def test_a_resolved_scintillation_time_constant_is_fitted_and_not_censored():
     """The behaviour the code must already have for the day the frame rate goes up."""
     stats = scintillation_stats(fake_results(ratio_rho=np.exp(-DT / 12.0e-3)))
 
-    assert stats["tau_scint_censored"] == 0
+    assert stats["tau_scint_censored"] == TAU_FITTED
     assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD
     assert stats["tau_scint_ms"] == pytest.approx(12.0, rel=0.2)
+
+
+def test_the_censor_gate_is_the_one_frame_limit():
+    """
+    rho(1) is exp(-dt/tau), so tau >= one frame means rho(1) >= 1/e. Any lower gate passes cubes
+    whose fitted time constant is below the sampling interval and therefore not a measurement --
+    at 0.2 the gate admitted everything down to 0.62 frames.
+    """
+    assert ACF1_CENSOR_THRESHOLD == pytest.approx(np.exp(-1.0))
+
+
+def test_a_sub_frame_time_constant_is_censored_not_fitted():
+    """
+    The band the old 0.2 gate let through. rho(1) = 0.3 is tau = 0.83 frames: correlated, but not
+    resolvable at this cadence, so it is an upper limit and must be flagged as one.
+    """
+    stats = scintillation_stats(fake_results(ratio_rho=0.3))
+
+    assert 0.2 < stats["acf1_ratio"] < np.exp(-1.0), "sanity: this is the band under test"
+    assert stats["tau_scint_censored"] == TAU_CENSORED
+    assert stats["tau_scint_ms"] == pytest.approx(DT * 1000.0, rel=0.01)
+
+
+def test_a_failed_fit_is_flagged_rather_than_left_as_a_bare_nan():
+    """
+    Passing the gate does not guarantee a fit: fit_tau needs two usable lags, and a series whose
+    correlation goes negative by lag 2 gives only one. Writing NaN with the flag left at 0 makes
+    that indistinguishable from a good fit, which is how 32 rows of 2026-08-16 were mis-recorded.
+    """
+    results = fake_results()
+    # a 6-frame periodic ratio: rho(1) = cos(60 deg) = +0.5, rho(2) = cos(120 deg) = -0.5
+    phase = 2.0 * np.pi * np.arange(len(results["frame_index"])) / 6.0
+    ratio = 0.75 * (1.0 + 0.2 * np.cos(phase))
+    bright = np.array([f[0] for f in results["aperture_fluxes"]])
+    results["aperture_fluxes"] = [np.array([b, b * r]) for b, r in zip(bright, ratio)]
+
+    stats = scintillation_stats(results)
+
+    assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD, "sanity: it passes the gate"
+    assert np.isnan(stats["tau_scint_ms"])
+    assert stats["tau_scint_censored"] == TAU_FIT_FAILED
+
+
+@pytest.mark.parametrize("results", [
+    fake_results(ratio_rho=np.exp(-DT / 12.0e-3)),   # fitted
+    fake_results(ratio_rho=0.0),                     # censored
+    fake_results(n=MIN_KEPT - 1, nbad=4000),         # too few frames to try
+])
+def test_a_zero_flag_always_means_a_finite_fitted_value(results):
+    """
+    The invariant every consumer of the column relies on: tau_scint_censored == 0 is a measurement.
+    Every path that cannot produce one -- censored, failed, never attempted -- says so in the flag,
+    so a NaN never has to be interpreted from the value alone.
+    """
+    stats = scintillation_stats(results)
+
+    if stats["tau_scint_censored"] == TAU_FITTED:
+        assert np.isfinite(stats["tau_scint_ms"])
+    else:
+        assert stats["tau_scint_censored"] in (TAU_CENSORED, TAU_FIT_FAILED)
 
 
 def test_dropouts_do_not_censor_a_resolved_scintillation_time_constant():
@@ -528,7 +613,7 @@ def test_dropouts_do_not_censor_a_resolved_scintillation_time_constant():
     assert spiked["frac_rejected"] == 0.0, "sanity: the dropouts are finite and positive"
     assert clean["acf1_ratio"] > ACF1_CENSOR_THRESHOLD, "sanity: the clean cube is correlated"
     assert spiked["acf1_ratio"] == pytest.approx(clean["acf1_ratio"], rel=0.15)
-    assert spiked["tau_scint_censored"] == 0
+    assert spiked["tau_scint_censored"] == TAU_FITTED
     assert spiked["tau_scint_ms"] == pytest.approx(clean["tau_scint_ms"], rel=0.25)
 
 
@@ -560,6 +645,56 @@ def test_the_row_has_one_field_per_header_column():
     assert row.endswith("\n")
     assert CSV_HEADER.endswith("\n")
     assert len(row.strip().split(",")) == len(CSV_HEADER.strip().split(","))
+
+
+def test_a_fresh_file_gets_the_header(tmp_path):
+    path = tmp_path / "scintillation.csv"
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER
+
+
+def test_a_file_that_already_matches_is_left_alone(tmp_path):
+    path = tmp_path / "scintillation.csv"
+    path.write_text(CSV_HEADER + "a,b,c\n")
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER + "a,b,c\n"
+    assert list(tmp_path.iterdir()) == [path], "nothing should have been rotated"
+
+
+def test_a_stale_header_is_rotated_aside_rather_than_appended_to(tmp_path):
+    """
+    The production file is only given a header when it does not exist, so adding a column would
+    otherwise append wider rows under the old narrow header and quietly corrupt the file. The old
+    data is worth keeping, so it moves aside instead of being truncated.
+    """
+    path = tmp_path / "scintillation.csv"
+    old = "time,target,throughput\n2026-08-16T22:48:58.673,Fomalhaut,0.6803\n"
+    path.write_text(old)
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER
+    rotated = [p for p in tmp_path.iterdir() if p != path]
+    assert len(rotated) == 1, "the old rows must survive somewhere"
+    assert rotated[0].read_text() == old
+
+
+def test_rotation_does_not_overwrite_an_earlier_rotation(tmp_path):
+    """Two column changes on the same day must not have the second one destroy the first."""
+    path = tmp_path / "scintillation.csv"
+    path.write_text("one,column\n1\n")
+    ensure_header(path)
+    path.write_text("two,columns\n2\n")
+
+    ensure_header(path)
+
+    rotated = sorted(p for p in tmp_path.iterdir() if p != path)
+    assert len(rotated) == 2
+    assert {p.read_text() for p in rotated} == {"one,column\n1\n", "two,columns\n2\n"}
 
 
 def test_the_row_starts_with_the_join_key():
@@ -625,8 +760,9 @@ def test_time_constants_are_withheld_when_the_cadence_is_unknown():
     assert np.isnan(stats["cadence_hz"])
     assert np.isnan(stats["tau_motion_ms"])
     assert np.isnan(stats["tau_scint_ms"])
-    # censoring reports the sampling interval as an upper limit, and there is no interval to report
-    assert stats["tau_scint_censored"] == 0
+    # censoring reports the sampling interval as an upper limit, and there is no interval to report,
+    # so this is neither a fit nor an upper limit -- it is a fit that could not be attempted
+    assert stats["tau_scint_censored"] == TAU_FIT_FAILED
 
 
 def test_a_short_cube_still_yields_nothing():

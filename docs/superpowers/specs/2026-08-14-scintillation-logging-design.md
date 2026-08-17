@@ -321,6 +321,15 @@ is the authority where they disagree:
   the two time constants need a frame interval; throughput and the index need frame *order*, so
   those are still written.
 
+- **`tau_scint_censored` is three-valued, and the gate is 1/e** (changed 2026-08-17, after the
+  first full night on sky). The schema table above says 1 means an upper limit; it now also carries
+  2, meaning no fit was obtained and `tau_scint_ms` is NaN. The invariant is that **0 always means a
+  finite fitted measurement** — the failure table's "`rho(1)` not finite → censored 0" row is
+  superseded, as is the early return for a cube with no usable `dt`. `ACF1_CENSOR_THRESHOLD` moved
+  from 0.2 to `1/e = 0.368`, which is the value that makes the gate mean what it claims: `rho(1)` is
+  `exp(-dt/tau)`, so `tau >= dt` is exactly `rho(1) >= 1/e`, and 0.2 was `tau = 0.62` frames. See
+  `docs/scintillation_logging_notes.md` for the night that forced both changes.
+
 Seeing validity (`seeing_is_valid`, `DIMM_IMAGE_SHAPE`, `MIN_CADENCE_HZ`) was outside this spec
 entirely, and arrived from the archive run: cubes that cannot measure seeing were writing
 sub-arcsecond values to `seeing.csv`. It gates only the `seeing.csv` write; the scintillation row is
