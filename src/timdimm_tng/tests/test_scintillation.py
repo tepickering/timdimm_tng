@@ -17,6 +17,9 @@ from timdimm_tng.scintillation import (
     CSV_COLUMNS,
     CSV_HEADER,
     MIN_KEPT,
+    TAU_CENSORED,
+    TAU_FIT_FAILED,
+    TAU_FITTED,
     format_row,
     assign_apertures,
     fit_tau,
@@ -491,7 +494,7 @@ def test_an_unresolved_scintillation_time_constant_is_censored():
     """What a real 299 Hz cube does: the flux ratio decorrelates in one frame."""
     stats = scintillation_stats(fake_results(ratio_rho=0.0))
 
-    assert stats["tau_scint_censored"] == 1
+    assert stats["tau_scint_censored"] == TAU_CENSORED
     assert stats["tau_scint_ms"] == pytest.approx(DT * 1000.0, rel=0.01)
     assert abs(stats["acf1_ratio"]) < ACF1_CENSOR_THRESHOLD
 
@@ -500,9 +503,69 @@ def test_a_resolved_scintillation_time_constant_is_fitted_and_not_censored():
     """The behaviour the code must already have for the day the frame rate goes up."""
     stats = scintillation_stats(fake_results(ratio_rho=np.exp(-DT / 12.0e-3)))
 
-    assert stats["tau_scint_censored"] == 0
+    assert stats["tau_scint_censored"] == TAU_FITTED
     assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD
     assert stats["tau_scint_ms"] == pytest.approx(12.0, rel=0.2)
+
+
+def test_the_censor_gate_is_the_one_frame_limit():
+    """
+    rho(1) is exp(-dt/tau), so tau >= one frame means rho(1) >= 1/e. Any lower gate passes cubes
+    whose fitted time constant is below the sampling interval and therefore not a measurement --
+    at 0.2 the gate admitted everything down to 0.62 frames.
+    """
+    assert ACF1_CENSOR_THRESHOLD == pytest.approx(np.exp(-1.0))
+
+
+def test_a_sub_frame_time_constant_is_censored_not_fitted():
+    """
+    The band the old 0.2 gate let through. rho(1) = 0.3 is tau = 0.83 frames: correlated, but not
+    resolvable at this cadence, so it is an upper limit and must be flagged as one.
+    """
+    stats = scintillation_stats(fake_results(ratio_rho=0.3))
+
+    assert 0.2 < stats["acf1_ratio"] < np.exp(-1.0), "sanity: this is the band under test"
+    assert stats["tau_scint_censored"] == TAU_CENSORED
+    assert stats["tau_scint_ms"] == pytest.approx(DT * 1000.0, rel=0.01)
+
+
+def test_a_failed_fit_is_flagged_rather_than_left_as_a_bare_nan():
+    """
+    Passing the gate does not guarantee a fit: fit_tau needs two usable lags, and a series whose
+    correlation goes negative by lag 2 gives only one. Writing NaN with the flag left at 0 makes
+    that indistinguishable from a good fit, which is how 32 rows of 2026-08-16 were mis-recorded.
+    """
+    results = fake_results()
+    # a 6-frame periodic ratio: rho(1) = cos(60 deg) = +0.5, rho(2) = cos(120 deg) = -0.5
+    phase = 2.0 * np.pi * np.arange(len(results["frame_index"])) / 6.0
+    ratio = 0.75 * (1.0 + 0.2 * np.cos(phase))
+    bright = np.array([f[0] for f in results["aperture_fluxes"]])
+    results["aperture_fluxes"] = [np.array([b, b * r]) for b, r in zip(bright, ratio)]
+
+    stats = scintillation_stats(results)
+
+    assert stats["acf1_ratio"] > ACF1_CENSOR_THRESHOLD, "sanity: it passes the gate"
+    assert np.isnan(stats["tau_scint_ms"])
+    assert stats["tau_scint_censored"] == TAU_FIT_FAILED
+
+
+@pytest.mark.parametrize("results", [
+    fake_results(ratio_rho=np.exp(-DT / 12.0e-3)),   # fitted
+    fake_results(ratio_rho=0.0),                     # censored
+    fake_results(n=MIN_KEPT - 1, nbad=4000),         # too few frames to try
+])
+def test_a_zero_flag_always_means_a_finite_fitted_value(results):
+    """
+    The invariant every consumer of the column relies on: tau_scint_censored == 0 is a measurement.
+    Every path that cannot produce one -- censored, failed, never attempted -- says so in the flag,
+    so a NaN never has to be interpreted from the value alone.
+    """
+    stats = scintillation_stats(results)
+
+    if stats["tau_scint_censored"] == TAU_FITTED:
+        assert np.isfinite(stats["tau_scint_ms"])
+    else:
+        assert stats["tau_scint_censored"] in (TAU_CENSORED, TAU_FIT_FAILED)
 
 
 def test_dropouts_do_not_censor_a_resolved_scintillation_time_constant():
@@ -528,7 +591,7 @@ def test_dropouts_do_not_censor_a_resolved_scintillation_time_constant():
     assert spiked["frac_rejected"] == 0.0, "sanity: the dropouts are finite and positive"
     assert clean["acf1_ratio"] > ACF1_CENSOR_THRESHOLD, "sanity: the clean cube is correlated"
     assert spiked["acf1_ratio"] == pytest.approx(clean["acf1_ratio"], rel=0.15)
-    assert spiked["tau_scint_censored"] == 0
+    assert spiked["tau_scint_censored"] == TAU_FITTED
     assert spiked["tau_scint_ms"] == pytest.approx(clean["tau_scint_ms"], rel=0.25)
 
 
@@ -625,8 +688,9 @@ def test_time_constants_are_withheld_when_the_cadence_is_unknown():
     assert np.isnan(stats["cadence_hz"])
     assert np.isnan(stats["tau_motion_ms"])
     assert np.isnan(stats["tau_scint_ms"])
-    # censoring reports the sampling interval as an upper limit, and there is no interval to report
-    assert stats["tau_scint_censored"] == 0
+    # censoring reports the sampling interval as an upper limit, and there is no interval to report,
+    # so this is neither a fit nor an upper limit -- it is a fit that could not be attempted
+    assert stats["tau_scint_censored"] == TAU_FIT_FAILED
 
 
 def test_a_short_cube_still_yields_nothing():

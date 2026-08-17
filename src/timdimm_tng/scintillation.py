@@ -285,7 +285,18 @@ def median_dt(frame_times):
 
 #: A lag-1 autocorrelation below this means the series decorrelates within one frame, so its time
 #: constant is an upper limit rather than a measurement. Real 299 Hz cubes give 0.10 and 0.01.
-ACF1_CENSOR_THRESHOLD = 0.2
+#:
+#: The value is 1/e and not a tuning knob: rho(1) is exp(-dt/tau), so tau >= dt is exactly
+#: rho(1) >= 1/e. The gate stood at 0.2 through 2026-08-16, which is tau = 0.62 frames, and the
+#: whole 0.2 to 0.368 band it admitted was sub-frame. On the night of 2026-08-16 that band held
+#: 32 of the 162 rows the gate passed, every one of them a failed fit.
+ACF1_CENSOR_THRESHOLD = float(np.exp(-1.0))
+
+#: Values of the ``tau_scint_censored`` column. Zero always means ``tau_scint_ms`` is a fitted
+#: measurement, so a consumer never has to infer from the value what happened.
+TAU_FITTED = 0        #: fitted; tau_scint_ms is finite and is the answer
+TAU_CENSORED = 1      #: decorrelated within a frame; tau_scint_ms is dt, an upper limit
+TAU_FIT_FAILED = 2    #: no fit was obtained; tau_scint_ms is NaN
 
 _NAN_KEYS = (
     "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio",
@@ -319,7 +330,9 @@ def scintillation_stats(results):
         "n_kept": int(n_kept),
         "n_frames": int(n_kept + results["N_bad"]),
         "cadence_hz": float(1.0 / dt) if np.isfinite(dt) and dt > 0 else float("nan"),
-        "tau_scint_censored": 0,
+        # every early return below leaves tau_scint_ms NaN, so failure is the default and the
+        # flag is cleared only once a finite fit is in hand
+        "tau_scint_censored": TAU_FIT_FAILED,
     }
     stats.update({key: float("nan") for key in _NAN_KEYS})
 
@@ -354,11 +367,15 @@ def scintillation_stats(results):
 
     if np.isfinite(acf1) and acf1 >= ACF1_CENSOR_THRESHOLD:
         tau_scint = fit_tau(log_ratio, ratio_index, dt)
-        stats["tau_scint_ms"] = tau_scint * 1000.0 if np.isfinite(tau_scint) else float("nan")
+        # passing the gate does not guarantee a fit -- fit_tau needs two lags with positive
+        # correlation and a negative slope, and a cube can clear rho(1) without supplying them
+        if np.isfinite(tau_scint):
+            stats["tau_scint_ms"] = tau_scint * 1000.0
+            stats["tau_scint_censored"] = TAU_FITTED
     elif np.isfinite(acf1):
         # decorrelated within one frame: the time constant is below the sampling interval
         stats["tau_scint_ms"] = dt * 1000.0
-        stats["tau_scint_censored"] = 1
+        stats["tau_scint_censored"] = TAU_CENSORED
 
     return stats
 

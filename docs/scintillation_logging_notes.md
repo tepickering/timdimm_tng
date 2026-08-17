@@ -179,6 +179,45 @@ On clean real cubes the change is small and the conclusion unaffected: rho(1) mo
 dropped. All remain far below `ACF1_CENSOR_THRESHOLD`, so scintillation is still unresolved at
 299 Hz — the point of the fix is the cube that *isn't* clean.
 
+## The first full night on sky, 2026-08-16
+
+451 cubes, 22:49 to 04:18, on Fomalhaut, Achernar and Canopus. It settled the censoring question
+and raised a sharper one.
+
+**The gate was mis-calibrated and is now 1/e.** `rho(1)` is `exp(-dt/tau)`, so requiring the time
+constant to be at least one frame is exactly `rho(1) >= 1/e = 0.368`. The gate stood at 0.2, which
+is `tau = 0.62` frames, and everything it admitted in between was sub-frame — reported as a fitted
+measurement while being smaller than the interval that could measure it. That band was not a corner
+case: of the 162 rows the old gate passed, **32 came back NaN** because `fit_tau` then failed, and
+their `acf1_ratio` values run 0.200 to 0.350 — the mis-calibrated band exactly. `tau_scint_censored`
+was 0 on all 32, indistinguishable from a good fit, so the column now carries 2 for a failed fit and
+0 means a finite fitted value and nothing else.
+
+The honest census of the night, at the corrected gate: **55 rows of 451 (12%) clear 1/e**. The
+archive's "73% censored" was optimistic for the same reason — at 299 Hz scintillation is unresolved,
+and one night of real data did not change that.
+
+**The tau estimators track signal strength, not just timescale.** `tau_motion_ms` correlates with
+`scint_index_raw` at Spearman +0.696 pooled and **+0.515 within Achernar alone** (357 cubes, airmass
+1.10 to 1.25), against only +0.24 with seeing. Binning Achernar by index is monotonic across all
+five bins — index 0.055 gives `tau_motion` 2.32 ms, index 0.201 gives 3.63 ms, with censoring
+falling 96% to 67% over the same range. White measurement noise dilutes an autocorrelation towards
+zero, so a weak signal shortens the apparent time constant; a real timescale should not care how
+large the signal is. **Treat both tau columns as SNR-contaminated until this is separated.** The
+test would be injecting known noise into a synthetic series at fixed tau and watching the recovered
+tau move.
+
+**Airmass is still not settled**, and this observing pattern cannot settle it. Pooled
+`corr(index, airmass)` is +0.691, which looks decisive, but it is entirely between-target: the
+scheduler takes the brightest star above 45 degrees, so each target owns a contiguous block of the
+night and target, airmass and hour are collinear. Within a target the airmass span is about 0.15 and
+the fitted `d ln(index) / d ln(X)` comes out at +8.6 for Achernar and -7.6 for Canopus against a
+theoretical ~3 — noise, not measurement. Breaking the degeneracy needs interleaved targets at
+different airmasses, which is a scheduler change not worth making for this. Separating it will have
+to come from many nights, where a given target recurs at different airmasses.
+
+`corr(index, seeing)` was +0.283 pooled over the night, the same weak value the archive gives.
+
 ## A cross-check worth noting
 
 The throughput measured here from SER cubes, 0.753 and 0.742, agrees with the 0.716 measured from
