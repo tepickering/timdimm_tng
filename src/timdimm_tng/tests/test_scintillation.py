@@ -20,6 +20,7 @@ from timdimm_tng.scintillation import (
     TAU_CENSORED,
     TAU_FIT_FAILED,
     TAU_FITTED,
+    ensure_header,
     format_row,
     assign_apertures,
     fit_tau,
@@ -421,9 +422,30 @@ def test_stats_has_exactly_the_expected_keys():
 
     assert set(stats) == {
         "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "tau_scint_censored",
-        "acf1_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright", "mean_flux_faint",
-        "frac_rejected",
+        "acf1_ratio", "acf2_ratio", "cadence_hz", "n_frames", "n_kept", "mean_flux_bright",
+        "mean_flux_faint", "frac_rejected",
     }
+
+
+def test_the_second_lag_correlation_is_logged():
+    """
+    An AR(1) ratio decays as rho**lag, so lag 2 is the square of lag 1. Logged because the wind
+    moment follows from the *difference* of two lags -- white photon noise adds to the variance but
+    to no non-zero lag, so s**2 * (rho1 - rho2) / (3 dt**2) is immune to it where a single lag is
+    not. See the Kornilov 2011 section of docs/scintillation_logging_notes.md.
+    """
+    rho = 0.6
+    stats = scintillation_stats(fake_results(ratio_rho=rho, n=40000))
+
+    assert stats["acf1_ratio"] == pytest.approx(rho, abs=0.03)
+    assert stats["acf2_ratio"] == pytest.approx(rho**2, abs=0.03)
+
+
+def test_the_second_lag_is_withheld_when_there_are_too_few_pairs():
+    """Same rule as lag 1: a correlation over a handful of pairs is noise wearing a number."""
+    stats = scintillation_stats(fake_results(n=MIN_KEPT + 5, nbad=4000))
+
+    assert np.isnan(stats["acf2_ratio"])
 
 
 def test_dropout_frames_are_reported_not_just_removed():
@@ -623,6 +645,56 @@ def test_the_row_has_one_field_per_header_column():
     assert row.endswith("\n")
     assert CSV_HEADER.endswith("\n")
     assert len(row.strip().split(",")) == len(CSV_HEADER.strip().split(","))
+
+
+def test_a_fresh_file_gets_the_header(tmp_path):
+    path = tmp_path / "scintillation.csv"
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER
+
+
+def test_a_file_that_already_matches_is_left_alone(tmp_path):
+    path = tmp_path / "scintillation.csv"
+    path.write_text(CSV_HEADER + "a,b,c\n")
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER + "a,b,c\n"
+    assert list(tmp_path.iterdir()) == [path], "nothing should have been rotated"
+
+
+def test_a_stale_header_is_rotated_aside_rather_than_appended_to(tmp_path):
+    """
+    The production file is only given a header when it does not exist, so adding a column would
+    otherwise append wider rows under the old narrow header and quietly corrupt the file. The old
+    data is worth keeping, so it moves aside instead of being truncated.
+    """
+    path = tmp_path / "scintillation.csv"
+    old = "time,target,throughput\n2026-08-16T22:48:58.673,Fomalhaut,0.6803\n"
+    path.write_text(old)
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER
+    rotated = [p for p in tmp_path.iterdir() if p != path]
+    assert len(rotated) == 1, "the old rows must survive somewhere"
+    assert rotated[0].read_text() == old
+
+
+def test_rotation_does_not_overwrite_an_earlier_rotation(tmp_path):
+    """Two column changes on the same day must not have the second one destroy the first."""
+    path = tmp_path / "scintillation.csv"
+    path.write_text("one,column\n1\n")
+    ensure_header(path)
+    path.write_text("two,columns\n2\n")
+
+    ensure_header(path)
+
+    rotated = sorted(p for p in tmp_path.iterdir() if p != path)
+    assert len(rotated) == 2
+    assert {p.read_text() for p in rotated} == {"one,column\n1\n", "two,columns\n2\n"}
 
 
 def test_the_row_starts_with_the_join_key():

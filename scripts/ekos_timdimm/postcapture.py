@@ -23,7 +23,7 @@ from timdimm_tng.analyze_cube import (
     find_apertures,
     analyze_dimm_cube,
 )
-from timdimm_tng.scintillation import CSV_HEADER, format_row, scintillation_stats
+from timdimm_tng.scintillation import ensure_header, format_row, scintillation_stats
 
 
 log = logging.getLogger("timDIMM")
@@ -103,9 +103,9 @@ target = pointing_status['target']
 try:
     scint = scintillation_stats(seeing_data)
     scint_file = Path.home() / "scintillation.csv"
-    if not scint_file.exists():
-        with open(scint_file, 'w') as fp:
-            fp.write(CSV_HEADER)
+    # rotates the file aside if its header predates a column change, rather than appending rows
+    # the header no longer describes
+    ensure_header(scint_file)
     with open(scint_file, 'a') as fp:
         fp.write(format_row(scint, now, target, exptime, pointing_status['airmass']))
     log.info(

@@ -37,7 +37,7 @@ from timdimm_tng.scintillation import scintillation_stats         # noqa: E402
 
 STAT_KEYS = (
     "throughput", "scint_index_raw", "frac_rejected", "tau_motion_ms", "tau_scint_ms",
-    "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
+    "tau_scint_censored", "acf1_ratio", "acf2_ratio", "cadence_hz", "n_frames", "n_kept",
     "mean_flux_bright", "mean_flux_faint",
 )
 COLUMNS = (

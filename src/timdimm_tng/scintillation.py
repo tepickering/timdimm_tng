@@ -13,6 +13,8 @@ synthetic series with known answers.
 See docs/superpowers/specs/2026-08-14-scintillation-logging-design.md.
 """
 
+from datetime import datetime
+
 import numpy as np
 from astropy import stats
 
@@ -299,7 +301,7 @@ TAU_CENSORED = 1      #: decorrelated within a frame; tau_scint_ms is dt, an upp
 TAU_FIT_FAILED = 2    #: no fit was obtained; tau_scint_ms is NaN
 
 _NAN_KEYS = (
-    "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio",
+    "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms", "acf1_ratio", "acf2_ratio",
     "mean_flux_bright", "mean_flux_faint", "frac_rejected",
 )
 
@@ -353,6 +355,13 @@ def scintillation_stats(results):
     acf1, npairs = lag_autocorr(log_ratio, ratio_index, 1)
     stats["acf1_ratio"] = acf1 if npairs >= MIN_PAIRS else float("nan")
 
+    # lag 2 is logged for the difference rho1 - rho2, which is how the atmospheric wind moment comes
+    # out of a fixed-exposure cube: white photon noise adds to the variance but to no non-zero lag,
+    # so differencing two lags cancels it where a single lag carries it at full weight. See the
+    # Kornilov 2011 section of docs/scintillation_logging_notes.md.
+    acf2, npairs2 = lag_autocorr(log_ratio, ratio_index, 2)
+    stats["acf2_ratio"] = acf2 if npairs2 >= MIN_PAIRS else float("nan")
+
     # Everything above is dimensionless and needs only the frame *order*. Everything below is a time
     # constant in milliseconds, so it needs a frame interval -- and older SER writers left the
     # per-frame timestamps constant. Withhold the time constants rather than the whole row.
@@ -383,7 +392,7 @@ def scintillation_stats(results):
 #: Column order of ~/scintillation.csv. Kept in one place so the header and the rows cannot drift.
 CSV_COLUMNS = (
     "time", "target", "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms",
-    "tau_scint_censored", "acf1_ratio", "cadence_hz", "n_frames", "n_kept",
+    "tau_scint_censored", "acf1_ratio", "acf2_ratio", "cadence_hz", "n_frames", "n_kept",
     "mean_flux_bright", "mean_flux_faint", "frac_rejected", "airmass", "exptime",
 )
 
@@ -391,10 +400,41 @@ CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
 
 #: Fixed precision keeps the file diffable and readable. Anything absent here is written with str().
 _PRECISION = {
-    "throughput": 4, "scint_index_raw": 4, "acf1_ratio": 3,
+    "throughput": 4, "scint_index_raw": 4, "acf1_ratio": 3, "acf2_ratio": 3,
     "tau_motion_ms": 2, "tau_scint_ms": 2, "cadence_hz": 2,
     "mean_flux_bright": 1, "mean_flux_faint": 1, "frac_rejected": 4, "airmass": 3,
 }
+
+
+def ensure_header(path):
+    """
+    Make ``path`` a CSV whose header is the current ``CSV_COLUMNS``, preserving any older file.
+
+    The production writer only writes a header when the file does not exist, so adding a column
+    would append wider rows under the narrower old header and leave a file that no longer parses.
+    A file whose header does not match is therefore moved aside rather than appended to or
+    truncated -- the old rows are real measurements and are still worth having.
+
+    Parameters
+    ----------
+    path : ~pathlib.Path
+        The CSV to check. Created with a header if absent.
+    """
+    if path.exists():
+        with open(path) as fp:
+            if fp.readline() == CSV_HEADER:
+                return
+        stamp = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y%m%dT%H%M%S")
+        rotated = path.with_name(f"{path.name}.{stamp}")
+        # a second column change within the same second must not destroy the first rotation
+        suffix = 0
+        while rotated.exists():
+            suffix += 1
+            rotated = path.with_name(f"{path.name}.{stamp}.{suffix}")
+        path.rename(rotated)
+
+    with open(path, "w") as fp:
+        fp.write(CSV_HEADER)
 
 
 def format_row(stats, time, target, exptime, airmass):
