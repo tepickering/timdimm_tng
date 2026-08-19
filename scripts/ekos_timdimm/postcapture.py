@@ -23,6 +23,13 @@ from timdimm_tng.analyze_cube import (
     find_apertures,
     analyze_dimm_cube,
 )
+from timdimm_tng.exposure import (
+    CAMERA_GAIN,
+    CAMERA_OFFSET,
+    PROBE_EXPTIME,
+    probe_peak_headroom,
+    select_exptime,
+)
 from timdimm_tng.scintillation import ensure_header, format_row, scintillation_stats
 
 
@@ -44,6 +51,11 @@ with open(Path.home() / "pointing_status.json", 'r') as fp:
 cam = INDI_Camera("ZWO CCD ASI432MM")
 cam.ser_mode()
 
+# pinned here rather than left to whatever the INDI control panel was last set to by hand. Both
+# values are logged with every row, so a future change stays legible in the archive.
+cam.set_gain(CAMERA_GAIN)
+cam.set_offset(CAMERA_OFFSET)
+
 # need to toggle video stream on and off to get camera out of a "stuck" state
 # it can get into, apparently. when in the state, the record_frames/record_duration
 # methods will generate INDI warnings saying "recording device is busy". toggling
@@ -53,8 +65,10 @@ time.sleep(2)
 cam.set_prop("CCD_VIDEO_STREAM", "STREAM_OFF", value="On")
 time.sleep(1)
 
-# grab a short full-frame cube
-cam.stream_exposure(0.005)
+# grab a short full-frame cube. Kept short deliberately: the old 5 ms probe clipped Canopus's
+# bright spot on every cube, and a flat-topped PSF corrupts the centroid the science ROI is built
+# around. See timdimm_tng.exposure.
+cam.stream_exposure(PROBE_EXPTIME)
 cam.set_ROI(0, 0, 1608, 1104)
 cam.record_frames(10, savedir="/home/timdimm", filename="find_boxes.ser")
 time.sleep(3)
@@ -69,11 +83,19 @@ if len(centroids) != 2:
 
 x, y = np.mean(ap_stats.centroid, axis=0)
 
+# The probe reads the faint (prism) aperture: it is the dimmer of the two, so it is the one that
+# has to stay measurable, and reading the bright one would put the test on pixels that may clip.
+faint_peak = ap_stats.max.min()
+headroom = probe_peak_headroom(ap_stats.max.max())
+if headroom < 1.0:
+    log.warning(
+        f"Probe cube is saturated: brightest pixel {ap_stats.max.max():.0f} counts is at "
+        f"{1 / headroom:.1f}x full scale. Aperture centroids are being taken from a flat-topped "
+        f"PSF; shorten PROBE_EXPTIME."
+    )
+
 # center apertures in a 400x400 ROI and grab a 15 second cube
-if ap_stats.max.min() < 1500:
-    exptime = 0.002
-else:
-    exptime = 0.001
+exptime = select_exptime(faint_peak, gain=CAMERA_GAIN)
 
 cam.stream_exposure(exptime)
 left = max(1, int(x - 200))
@@ -84,7 +106,10 @@ cam.set_ROI(left, top, 400, 400)
 time.sleep(3)
 cam.record_duration(15, savedir="/home/timdimm", filename="seeing.ser")
 time.sleep(17)
-log.info(f"ROI: X=[{left}:{left+400}], Y=[{top}:{top+400}]; exptime: {exptime}")
+log.info(
+    f"ROI: X=[{left}:{left+400}], Y=[{top}:{top+400}]; exptime: {exptime}; "
+    f"probe faint peak: {faint_peak:.0f}; gain: {CAMERA_GAIN}; offset: {CAMERA_OFFSET}"
+)
 
 try:
     seeing_data = analyze_dimm_cube("/home/timdimm/seeing.ser", airmass=pointing_status['airmass'])
@@ -107,7 +132,8 @@ try:
     # the header no longer describes
     ensure_header(scint_file)
     with open(scint_file, 'a') as fp:
-        fp.write(format_row(scint, now, target, exptime, pointing_status['airmass']))
+        fp.write(format_row(scint, now, target, exptime, pointing_status['airmass'],
+                            gain=CAMERA_GAIN, offset=CAMERA_OFFSET))
     log.info(
         f"Throughput: {scint['throughput']:.3f}; scint index: {scint['scint_index_raw']:.3f}; "
         f"tau_motion: {scint['tau_motion_ms']:.2f} ms; kept {scint['n_kept']}/{scint['n_frames']}"
