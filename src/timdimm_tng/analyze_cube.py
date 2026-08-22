@@ -173,6 +173,17 @@ def timdimm_seeing(sigma):
     return seeing(sigma, baseline=200 * u.mm, aperture_diameter=50 * u.mm)
 
 
+#: How far a frame's baseline may sit from the reference before the frame is discarded, as a
+#: fraction of the reference. The two spots are formed by a rigid mask, so the baseline is fixed up
+#: to differential image motion of a few pixels; anything further is a centroid that has lost one of
+#: the spots. At the 42.5 px baseline this instrument runs, 25% is 10.6 px, which is a 5-sigma
+#: excursion at 3.3 arcsec seeing and 8-15 sigma at the 1-2 arcsec the site actually delivers -- so
+#: it cannot reach real image motion. Verified inert on two clean cubes from 2026-08-22, which it
+#: leaves bit-identical, while removing 22 frames from the strong-scintillation cube of the same
+#: target taken minutes later.
+BASELINE_TOLERANCE = 0.25
+
+
 def find_apertures(
     data, threshold=15.0, plot=False, ap_size=7, brightest=3, std=None, deblend=True
 ):
@@ -322,6 +333,22 @@ def dimm_calc(data, aps):
     # hdimm_calc calls the same condition "overlapped".
     if not np.isfinite(dist_baseline) or dist_baseline < 0.5 * aps.r:
         return None
+
+    # ...and the same argument bounds it from above. A deep scintillation fade leaves an aperture
+    # holding noise whose sum is a coin flip about zero, so it clears the `sum > 0` test above and
+    # contributes a centroid that is pure noise. The baseline that results is not short, it is
+    # arbitrary: 20260822_bad_1.ser carries baselines from 23 to 101 px against a true 42.5, and
+    # they were accepted silently, then fed forward as the aperture positions for the frames after.
+    # The zero-length guard cannot catch these; only a comparison against the reference can.
+    # `aps` carries only one position when the reference image was too faint for both spots, which
+    # is the rescue path analyze_dimm_cube warns about. There is no reference baseline to compare
+    # against until a frame succeeds, so the guard stands down rather than rejecting the whole cube;
+    # the first accepted frame supplies the two positions every later frame is then held to.
+    if len(aps.positions) == 2:
+        ref = aps.positions[1] - aps.positions[0]
+        ref_baseline = np.sqrt(np.dot(ref.T, ref))
+        if ref_baseline > 0 and abs(dist_baseline - ref_baseline) > BASELINE_TOLERANCE * ref_baseline:
+            return None
 
     return new_aps, [dist_baseline], ap_stats.sum
 

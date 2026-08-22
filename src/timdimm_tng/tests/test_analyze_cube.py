@@ -9,12 +9,14 @@ any lag-based estimator silently shifts the series against each other.
 import astropy.convolution
 import numpy as np
 import pytest
+from photutils.aperture import ApertureStats, CircularAperture
 from photutils.segmentation import make_2dgaussian_kernel
 
 from timdimm_tng.analyze_cube import (
     DIMM_IMAGE_SHAPE,
     MIN_CADENCE_HZ,
     analyze_dimm_cube,
+    dimm_calc,
     find_apertures,
     seeing_is_valid,
 )
@@ -266,3 +268,56 @@ def test_shortening_the_probe_would_lose_that_target():
     img = _two_spot_image(faint_sigma=10.5)
     with pytest.raises(ValueError, match="No sources detected"):
         find_apertures(img, threshold=PROBE_THRESHOLD, brightest=2)
+
+
+def _frame_with_spots(positions, shape=(400, 400), amp=4000.0, noise=9.0, fwhm=4.6, seed=1):
+    """A background-subtracted frame with a Gaussian spot at each position."""
+    rng = np.random.default_rng(seed)
+    img = rng.normal(0.0, noise, shape)
+    yy, xx = np.mgrid[: shape[0], : shape[1]]
+    sig = fwhm / 2.355
+    for x0, y0 in positions:
+        img += amp * np.exp(-((xx - x0) ** 2 + (yy - y0) ** 2) / (2 * sig**2))
+    return img
+
+
+def test_dimm_calc_accepts_a_normal_frame():
+    """The control for the guard below: spots where the apertures expect them are measured."""
+    aps = CircularAperture([(150.0, 200.0), (192.0, 200.0)], r=11)
+    frame = _frame_with_spots([(150.0, 200.0), (192.0, 200.0)])
+    result = dimm_calc(frame, aps)
+    assert result is not None
+    assert result[1][0] == pytest.approx(42.0, abs=0.5)
+
+
+def test_dimm_calc_rejects_an_impossible_baseline():
+    """
+    The two spots come from a rigid mask, so the baseline cannot move far from its reference.
+
+    When a deep scintillation fade empties the prism aperture, ``ap_stats.sum <= 0`` sends dimm_calc
+    into a full-frame re-detection, and on a frame where that spot is genuinely gone the re-detection
+    pairs the surviving star with whatever else is brightest. That returned a baseline of up to
+    101.6 px against a true 42.5 on 20260822_bad_1.ser -- accepted silently, because only the short
+    side was guarded, and then fed forward as the aperture positions for every subsequent frame.
+    """
+    aps = CircularAperture([(150.0, 200.0), (192.0, 200.0)], r=11)
+    # prism aperture empty, and a spurious source far away for the re-detection to latch onto
+    frame = _frame_with_spots([(150.0, 200.0), (330.0, 200.0)])
+    assert dimm_calc(frame, aps) is None
+
+
+def test_dimm_calc_rejects_a_noise_centroid_from_an_emptied_aperture():
+    """
+    The dominant failure on 20260822_bad_1.ser, and it never reaches the re-detection fallback.
+
+    A deep fade leaves the prism aperture holding noise, whose sum is a coin flip about zero -- here
+    1.6 against the clear aperture's 95833. That clears ``np.all(ap_stats.sum > 0)``, so the frame
+    takes the normal path and the aperture's noise-driven "centroid" is accepted as a measurement.
+    The zero-length guard cannot see it, because the resulting baseline is not short; it is
+    arbitrary. That is what put 23 to 101 px baselines into a cube whose true baseline is 42.5.
+    """
+    aps = CircularAperture([(150.0, 200.0), (192.0, 200.0)], r=11)
+    frame = _frame_with_spots([(150.0, 200.0)])           # prism aperture emptied by a fade
+    stats_ = ApertureStats(frame, aps)
+    assert stats_.sum.min() > 0, "the fade must leave a marginally positive sum, or this is untested"
+    assert dimm_calc(frame, aps) is None
