@@ -355,8 +355,13 @@ def test_max_bad_fraction_is_a_fraction_of_the_cube():
     The gate was a bare count of 50 against cubes of 4430 frames, i.e. 1.1%.
 
     Counting bad frames honestly (see the baseline guard) pushes real cubes past a fixed 50 while
-    leaving the surviving frames perfectly good: 20260822_bad_1 lands at 62 bad with a trustworthy
-    2.339 arcsec in it. A fraction scales with the cube instead of with its length.
+    leaving the surviving frames perfectly good: 20260822_bad_1 lands at 60 bad with a trustworthy
+    2.394 arcsec in it. A fraction scales with the cube instead of with its length.
+
+    The value is bounded on both sides by real data. Below roughly 1.3% it would start discarding
+    cubes the site has actually produced -- 2026-08-22 peaked at 56 bad frames on 4430. Above a few
+    percent it stops being a gate at all: 10% of a 4430-frame cube is 443 lost centroids, and
+    nothing in 539 archived cubes comes within a factor of five of that.
     """
-    assert MAX_BAD_FRACTION == 0.10
-    assert 0.0 < MAX_BAD_FRACTION < 1.0
+    assert MAX_BAD_FRACTION == 0.03
+    assert 0.0126 < MAX_BAD_FRACTION < 0.05, "must clear the observed worst cube, but stay a gate"

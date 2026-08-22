@@ -175,10 +175,18 @@ def timdimm_seeing(sigma):
 
 #: Largest share of a cube's frames that may be rejected before the seeing is not worth logging.
 #: Replaces a bare count of 50, which was 1.1% of the 4430-frame cubes this runs on and was set when
-#: mis-centroided frames were being silently accepted rather than counted. Now that the baseline
-#: guard counts them honestly, a strong-scintillation cube reaches 62 bad frames while the ~4370
-#: that survive are perfectly good: 20260822_bad_1 carries a trustworthy 2.339 arcsec at 1.4% bad.
-MAX_BAD_FRACTION = 0.10
+#: mis-centroided frames were being silently accepted rather than counted.
+#:
+#: Calibrated on 539 cubes: the 451 of 2026-08-16 in ordinary conditions, which peak at 8 bad frames
+#: (0.18%), and the 88 of 2026-08-22, the strongest scintillation on record, whose median is 1 bad
+#: frame and whose worst is 56 (1.26%). 3% is 133 frames, roughly twice the worst real cube observed,
+#: so it passes everything the site has actually produced while still rejecting a cube that has gone
+#: wrong. A cube failing this is moved to ~/last_bad_seeing.ser rather than deleted.
+#:
+#: Do not read this as a licence to lose frames. At 4430 frames per cube even 3% is 133 centroids
+#: thrown away, and nothing observed comes close; a cube approaching the limit is telling you
+#: something about the instrument, not about the sky.
+MAX_BAD_FRACTION = 0.03
 
 #: Point at which a cube is abandoned mid-analysis rather than gated afterwards. Deliberately far
 #: looser than MAX_BAD_FRACTION: this is a runaway guard that stops work on a hopeless cube, not a
