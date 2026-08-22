@@ -57,6 +57,16 @@ FULL_SCALE_COUNTS = FULL_SCALE_ADU12 * ADU_SHIFT
 #: unnoticed because the threshold below reads the *faint* spot. Sirius would have clipped both.
 PROBE_EXPTIME = 0.001
 
+#: DAOfind-style detection cut for the probe, in units of the image's standard deviation. It was 35
+#: for as long as the probe ran at 5 ms, where it was never really a detection threshold: the spots
+#: were hundreds of sigma and a high cut simply meant nothing else survived. Dropping the probe to
+#: 1 ms divided every target's significance by five, and Achernar's prism spot measures 58 sigma on
+#: a 10-frame mean, so the fainter half of the schedule fell under the cut while still being
+#: obvious by eye. ``find_apertures`` already keeps only the ``brightest=2``, so the threshold does
+#: no selection work and only has to pass the spots; 5 sigma detects both down to a prism peak
+#: roughly ten times fainter than the 35-sigma cliff.
+PROBE_THRESHOLD = 5.0
+
 #: ``(upper bound on the faint spot's probe peak, exposure to use)``, ascending, open-ended at the
 #: top. A reading below a bound takes that rung, so the bounds read as strict ``<``.
 EXPOSURE_LADDER = (

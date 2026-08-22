@@ -27,6 +27,7 @@ from timdimm_tng.exposure import (
     CAMERA_GAIN,
     CAMERA_OFFSET,
     PROBE_EXPTIME,
+    PROBE_THRESHOLD,
     probe_peak_headroom,
     select_exptime,
 )
@@ -74,7 +75,7 @@ cam.record_frames(10, savedir="/home/timdimm", filename="find_boxes.ser")
 time.sleep(3)
 aperture_data = load_ser_file("/home/timdimm/find_boxes.ser")
 aperture_image = np.mean(aperture_data['data'], axis=0)
-aps = find_apertures(aperture_image, threshold=35, brightest=2)
+aps = find_apertures(aperture_image, threshold=PROBE_THRESHOLD, brightest=2)
 ap_stats = ApertureStats(aperture_image, aps[0])
 centroids = ap_stats.centroid
 if len(centroids) != 2:
