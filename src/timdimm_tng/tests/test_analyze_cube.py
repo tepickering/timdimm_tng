@@ -241,23 +241,28 @@ def _two_spot_image(faint_sigma, shape=(400, 400), noise=9.0, fwhm=4.6, seed=0):
     return 1500.0 + spots + rng.normal(0.0, noise, shape)
 
 
-def test_probe_threshold_finds_faint_targets():
+def test_probe_threshold_clears_a_faint_target_at_the_five_ms_probe():
     """
-    The probe threshold has to clear the *faintest* scheduled target, not the brightest.
+    PROBE_THRESHOLD only means what it says at PROBE_EXPTIME.
 
-    ``threshold`` is in units of the image's standard deviation, so it tracks signal-to-noise
-    rather than counts, and shortening PROBE_EXPTIME from 5 ms to 1 ms divided every target's
-    significance by five. At the old value of 35 that put Shaula-class targets below the cut while
-    they were still plainly visible by eye, and the probe found one aperture instead of two.
-    Selection is ``brightest=2``'s job; the threshold only has to let the spots through.
+    ``threshold`` is in units of the image's standard deviation, so it tracks signal-to-noise, not
+    counts. A faint target measured on sky on 2026-08-22 put its prism spot at 10.5 sigma on a
+    5-frame mean at 1 ms; the read noise does not scale with exposure, so the 5 ms probe the site
+    actually uses puts the same spot near 52 sigma, which clears the cut with room to spare.
     """
-    img = _two_spot_image(faint_sigma=10.0)
+    img = _two_spot_image(faint_sigma=52.0)
     aps, _ = find_apertures(img, threshold=PROBE_THRESHOLD, brightest=2)
     assert len(aps) == 2
 
 
-def test_probe_threshold_rejects_the_old_five_millisecond_value():
-    """A 10-sigma prism spot is comfortably visible, and 35 sigma is what threw it away."""
-    img = _two_spot_image(faint_sigma=10.0)
+def test_shortening_the_probe_would_lose_that_target():
+    """
+    Regression guard on the 2026-08 outage, from the opposite side to ``test_probe_stays_at_five_``.
+
+    At 1 ms that same target's prism spot sits at 10.5 sigma and the probe finds nothing at all --
+    not one aperture, zero -- while both spots are plainly visible in the image. This is the failure
+    the shortened probe produced, and it is a property of the exposure, not of the threshold.
+    """
+    img = _two_spot_image(faint_sigma=10.5)
     with pytest.raises(ValueError, match="No sources detected"):
-        find_apertures(img, threshold=35.0, brightest=2)
+        find_apertures(img, threshold=PROBE_THRESHOLD, brightest=2)

@@ -14,21 +14,22 @@ from timdimm_tng.exposure import (
     EXPOSURE_LADDER,
     FULL_SCALE_COUNTS,
     PROBE_EXPTIME,
+    PROBE_THRESHOLD,
     gain_scale,
-    probe_peak_headroom,
     select_exptime,
 )
 
 
-# faint-aperture peak in stored counts on the 10-frame probe at PROBE_EXPTIME and CAMERA_GAIN,
-# scaled from the measured peak/aperture-sum ratio of 0.0599 on 20260816_3.ser.gz
+# faint-aperture peak in stored counts on the probe at PROBE_EXPTIME and CAMERA_GAIN, scaled from
+# the measured peak/aperture-sum ratio of 0.0599 on 20260816_3.ser.gz. Sirius is clipped here: at
+# 5 ms its faint spot passes full scale, so it reads the ceiling rather than a true peak.
 MEASURED_PROBE_PEAKS = {
-    "Shaula": 876,
-    "Mimosa": 1170,
-    "Fomalhaut": 1252,
-    "Achernar": 2596,
-    "Canopus": 7566,
-    "Sirius": 14672,
+    "Shaula": 4380,
+    "Mimosa": 5850,
+    "Fomalhaut": 6260,
+    "Achernar": 12980,
+    "Canopus": 37830,
+    "Sirius": FULL_SCALE_COUNTS,
 }
 
 
@@ -48,37 +49,62 @@ def test_real_targets_land_on_their_intended_tier(target, expected):
     assert select_exptime(MEASURED_PROBE_PEAKS[target]) == expected
 
 
+def test_a_clipped_faint_spot_takes_the_shortest_exposure():
+    """
+    The probe is expected to clip on bright targets, so the ladder has to fail in a safe direction.
+
+    A faint aperture that has reached full scale carries no information about how much brighter the
+    target really is, and anything that saturates it wants the shortest science exposure available.
+    """
+    assert select_exptime(FULL_SCALE_COUNTS) == min(exp for _, exp in EXPOSURE_LADDER)
+
+
 def test_cloud_attenuation_still_falls_back_to_two_ms():
-    """The original behaviour, unchanged: a faint reading lengthens the exposure."""
-    assert select_exptime(200) == 0.002
+    """
+    The original behaviour, preserved exactly.
+
+    Before the ladder this was a bare ``if faint_peak < 1500: exptime = 0.002``, on a probe at this
+    same 5 ms. Keeping the bound at its original value in its original units is what makes the
+    proven cloud fallback survive the rewrite.
+    """
+    assert select_exptime(1000) == 0.002
+    assert select_exptime(1499) == 0.002
+    assert select_exptime(1500) == 0.001
+
+
+def test_science_default_is_one_millisecond():
+    """1 ms is the default the ladder moves around, not a rung reached only in special cases."""
+    for peak in (1500, 5000, 12980, 19999):
+        assert select_exptime(peak) == 0.001
 
 
 def test_ladder_is_monotonic_in_peak():
     """Brighter must never mean longer. A mis-ordered ladder is the obvious way to break this."""
-    peaks = [10, 100, 299, 300, 1000, 3999, 4000, 9999, 10000, 50000]
+    peaks = [10, 1000, 1499, 1500, 10000, 19999, 20000, 49999, 50000, 65520]
     exposures = [select_exptime(p) for p in peaks]
     assert exposures == sorted(exposures, reverse=True)
 
 
 def test_boundaries_are_inclusive_upward():
     """A peak exactly on a bound takes the shorter exposure, so the bounds read as '< bound'."""
-    assert select_exptime(299) == 0.002
-    assert select_exptime(300) == 0.001
-    assert select_exptime(3999) == 0.001
-    assert select_exptime(4000) == 0.0005
-    assert select_exptime(9999) == 0.0005
-    assert select_exptime(10000) == 0.00025
+    assert select_exptime(1499) == 0.002
+    assert select_exptime(1500) == 0.001
+    assert select_exptime(19999) == 0.001
+    assert select_exptime(20000) == 0.0005
+    assert select_exptime(49999) == 0.0005
+    assert select_exptime(50000) == 0.00025
 
 
 def test_thresholds_scale_with_gain():
     """
     The bounds are raw counts, so they are only meaningful at the gain they were calibrated at.
 
-    At GAIN 140 every reading halves. A lightly attenuated Shaula reads 250 there, which is below the
-    unscaled 300 bound and would drop into the 2 ms fallback for no reason other than the gain change.
+    At GAIN 140 every reading halves. A lightly attenuated Shaula reads 1250 there, which is below
+    the unscaled 1500 bound and would drop into the 2 ms fallback for no reason other than the gain
+    change.
     """
-    assert select_exptime(250, gain=CAMERA_GAIN) == 0.002
-    assert select_exptime(250, gain=140) == 0.001
+    assert select_exptime(1250, gain=CAMERA_GAIN) == 0.002
+    assert select_exptime(1250, gain=140) == 0.001
 
 
 def test_gain_scale_is_unity_at_the_configured_gain():
@@ -87,23 +113,18 @@ def test_gain_scale_is_unity_at_the_configured_gain():
     assert gain_scale(140) == pytest.approx(0.5, rel=0.01)
 
 
-def test_probe_does_not_saturate_on_the_brightest_target():
+def test_probe_stays_at_five_milliseconds():
     """
-    Regression guard on the bug this replaces.
+    Regression guard on the 2026-08 outage.
 
-    The old 5 ms probe put Canopus's *bright* spot at ~5140 ADU_12 against a 4095 full scale -- it
-    clipped on every Canopus cube, and the threshold reads the faint spot so nothing noticed. The
-    probe has to stay short enough that even Sirius comes back unclipped, because a flat-topped PSF
-    corrupts the centroid the science ROI is then built around.
+    The probe was shortened to 1 ms to stop bright targets clipping it. Clipping there is harmless
+    -- a saturated star still centroids well enough to place the ROI -- but the length is not: it is
+    what averages over scintillation and carries signal-to-noise through cloud, and PROBE_THRESHOLD
+    is in units of sigma, so dividing the exposure by five divided the detection margin by five and
+    the probe stopped finding apertures at all on the fainter half of the schedule.
     """
-    # bright spot is 1/0.46 times the faint one, from the same archived cube
-    sirius_bright = MEASURED_PROBE_PEAKS["Sirius"] / 0.46
-    assert sirius_bright < FULL_SCALE_COUNTS
-    assert probe_peak_headroom(sirius_bright) > 1.5
-
-
-def test_probe_exposure_is_shorter_than_the_old_five_ms():
-    assert PROBE_EXPTIME < 0.005
+    assert PROBE_EXPTIME == 0.005
+    assert PROBE_THRESHOLD == 35.0
 
 
 def test_camera_settings_are_the_ones_in_use_on_sky():

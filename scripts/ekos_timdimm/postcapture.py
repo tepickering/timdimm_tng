@@ -28,7 +28,6 @@ from timdimm_tng.exposure import (
     CAMERA_OFFSET,
     PROBE_EXPTIME,
     PROBE_THRESHOLD,
-    probe_peak_headroom,
     select_exptime,
 )
 from timdimm_tng.scintillation import ensure_header, format_row, scintillation_stats
@@ -66,9 +65,10 @@ time.sleep(2)
 cam.set_prop("CCD_VIDEO_STREAM", "STREAM_OFF", value="On")
 time.sleep(1)
 
-# grab a short full-frame cube. Kept short deliberately: the old 5 ms probe clipped Canopus's
-# bright spot on every cube, and a flat-topped PSF corrupts the centroid the science ROI is built
-# around. See timdimm_tng.exposure.
+# grab a full-frame cube to locate the apertures. Long deliberately: the 5 ms integration averages
+# over scintillation and holds signal-to-noise through cloud, which is when the apertures are
+# hardest to find. Bright targets clip it and that is fine -- a saturated star still centroids well
+# enough to place the ROI, and nothing photometric is taken from this cube.
 cam.stream_exposure(PROBE_EXPTIME)
 cam.set_ROI(0, 0, 1608, 1104)
 cam.record_frames(10, savedir="/home/timdimm", filename="find_boxes.ser")
@@ -97,16 +97,9 @@ if len(centroids) != 2:
 
 x, y = np.mean(ap_stats.centroid, axis=0)
 
-# The probe reads the faint (prism) aperture: it is the dimmer of the two, so it is the one that
-# has to stay measurable, and reading the bright one would put the test on pixels that may clip.
+# The probe reads the faint (prism) aperture: it is the dimmer of the two and so the one that stays
+# unclipped longest. The bright spot is expected to saturate here and is not used.
 faint_peak = ap_stats.max.min()
-headroom = probe_peak_headroom(ap_stats.max.max())
-if headroom < 1.0:
-    log.warning(
-        f"Probe cube is saturated: brightest pixel {ap_stats.max.max():.0f} counts is at "
-        f"{1 / headroom:.1f}x full scale. Aperture centroids are being taken from a flat-topped "
-        f"PSF; shorten PROBE_EXPTIME."
-    )
 
 # center apertures in a 400x400 ROI and grab a 15 second cube
 exptime = select_exptime(faint_peak, gain=CAMERA_GAIN)
