@@ -30,6 +30,7 @@ from timdimm_tng.dbus.ekos import Ekos
 from timdimm_tng.dbus.dome import Dome
 
 from timdimm_tng.wx.check_wx import get_current_conditions
+from timdimm_tng.wx.csv_log import log_saao_io, log_salt
 from timdimm_tng.wx.adafruit import (
     HUMIDITY_LIMIT,
     latest_measurement,
@@ -74,6 +75,20 @@ sun_azel = sun_coord.transform_to(AltAz(obstime=Time.now(), location=SAAO))
 # check weather and if SALT or SAAO IO think it's safe to open
 try:
     wx, safety_checks = get_current_conditions()
+
+    # SAAO archives this weather in databases we can't query, so the only record we get to keep is
+    # the one written here as the readings go past. Its own try/except: a full disk must never stop
+    # the roof from closing. Rows are keyed on each station's clock, so this loop's ~2 s cadence
+    # collapses to the station's real one, roughly a row a minute.
+    try:
+        now = Time.now().isot
+        if log_saao_io(Path.home() / "saao_io.csv", wx["SAAO-IO"], now):
+            log.debug("Logged a SAAO IO reading.")
+        if log_salt(Path.home() / "salt_wx.csv", wx["SALT"], now):
+            log.debug("Logged a SALT reading.")
+    except Exception as e:
+        log.warning(f"Can't log weather conditions: {e}")
+
     saao_open_ok = False
     salt_open_ok = False
 
