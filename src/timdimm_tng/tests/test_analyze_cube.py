@@ -6,15 +6,19 @@ the whole cube. Without ``frame_index`` there is no way to say when any given sa
 any lag-based estimator silently shifts the series against each other.
 """
 
+import astropy.convolution
 import numpy as np
 import pytest
+from photutils.segmentation import make_2dgaussian_kernel
 
 from timdimm_tng.analyze_cube import (
     DIMM_IMAGE_SHAPE,
     MIN_CADENCE_HZ,
     analyze_dimm_cube,
+    find_apertures,
     seeing_is_valid,
 )
+from timdimm_tng.exposure import PROBE_THRESHOLD
 from timdimm_tng.scintillation import scintillation_stats
 from timdimm_tng.tests.ser_helpers import write_ser
 
@@ -211,3 +215,49 @@ def test_a_production_shaped_cube_is_flagged_valid(tmp_path):
     assert results["image_shape"] == DIMM_IMAGE_SHAPE
     assert results["cadence_hz"] == pytest.approx(303.0, rel=0.02)
     assert results["seeing_valid"] is True
+
+
+def _two_spot_image(faint_sigma, shape=(400, 400), noise=9.0, fwhm=4.6, seed=0):
+    """
+    A pair of Gaussian spots on read noise, with the fainter one at a chosen significance.
+
+    Mimics the probe cube: the bright (clear) aperture and the dimmer prism one, whose peak ratio
+    is roughly 0.46 because the prism image is dispersed. ``fwhm`` and ``noise`` are measured off a
+    10-frame mean of ``20260816_3.ser.gz``. ``faint_sigma`` is the prism spot's peak *after* the
+    detection kernel, which is the quantity ``threshold`` is compared against -- the 5-pixel kernel
+    costs about a factor of two of peak, so quoting the raw peak would overstate detectability.
+    """
+    yy, xx = np.mgrid[: shape[0], : shape[1]]
+    sig = fwhm / 2.355
+    spots = np.zeros(shape)
+    for x0, rel in ((150.0, 0.46), (250.0, 1.0)):
+        spots += rel * np.exp(-((xx - x0) ** 2 + (yy - 200.0) ** 2) / (2 * sig**2))
+
+    kernel = make_2dgaussian_kernel(5, size=15)
+    faint_peak = astropy.convolution.convolve(spots, kernel)[200, 150]
+    spots *= faint_sigma * noise / faint_peak
+
+    rng = np.random.default_rng(seed)
+    return 1500.0 + spots + rng.normal(0.0, noise, shape)
+
+
+def test_probe_threshold_finds_faint_targets():
+    """
+    The probe threshold has to clear the *faintest* scheduled target, not the brightest.
+
+    ``threshold`` is in units of the image's standard deviation, so it tracks signal-to-noise
+    rather than counts, and shortening PROBE_EXPTIME from 5 ms to 1 ms divided every target's
+    significance by five. At the old value of 35 that put Shaula-class targets below the cut while
+    they were still plainly visible by eye, and the probe found one aperture instead of two.
+    Selection is ``brightest=2``'s job; the threshold only has to let the spots through.
+    """
+    img = _two_spot_image(faint_sigma=10.0)
+    aps, _ = find_apertures(img, threshold=PROBE_THRESHOLD, brightest=2)
+    assert len(aps) == 2
+
+
+def test_probe_threshold_rejects_the_old_five_millisecond_value():
+    """A 10-sigma prism spot is comfortably visible, and 35 sigma is what threw it away."""
+    img = _two_spot_image(faint_sigma=10.0)
+    with pytest.raises(ValueError, match="No sources detected"):
+        find_apertures(img, threshold=35.0, brightest=2)
