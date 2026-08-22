@@ -173,6 +173,19 @@ def timdimm_seeing(sigma):
     return seeing(sigma, baseline=200 * u.mm, aperture_diameter=50 * u.mm)
 
 
+#: Largest share of a cube's frames that may be rejected before the seeing is not worth logging.
+#: Replaces a bare count of 50, which was 1.1% of the 4430-frame cubes this runs on and was set when
+#: mis-centroided frames were being silently accepted rather than counted. Now that the baseline
+#: guard counts them honestly, a strong-scintillation cube reaches 62 bad frames while the ~4370
+#: that survive are perfectly good: 20260822_bad_1 carries a trustworthy 2.339 arcsec at 1.4% bad.
+MAX_BAD_FRACTION = 0.10
+
+#: Point at which a cube is abandoned mid-analysis rather than gated afterwards. Deliberately far
+#: looser than MAX_BAD_FRACTION: this is a runaway guard that stops work on a hopeless cube, not a
+#: quality decision, and aborting here costs the scintillation row too -- which postcapture writes
+#: outside the seeing gate precisely because a dewing prism is what it is there to measure.
+ABORT_BAD_FRACTION = 0.5
+
 #: How far a frame's baseline may sit from the reference before the frame is discarded, as a
 #: fraction of the reference. The two spots are formed by a rigid mask, so the baseline is fixed up
 #: to differential image motion of a few pixels; anything further is a centroid that has lost one of
@@ -296,7 +309,7 @@ def hdimm_calc(data, aps):
     return new_aps, [d_base1, d_base2, d_base3], ap_stats.sum
 
 
-def dimm_calc(data, aps):
+def dimm_calc(data, aps, ref_baseline=None):
     """
     Calculate longitudinal distance between two spots creatded by a DIMM mask
 
@@ -307,6 +320,16 @@ def dimm_calc(data, aps):
 
     aps : ~photutils.aperture.CircularAperture
         Aperture positions
+
+    ref_baseline : float or None (default: None)
+        Baseline of the cube's reference image, in pixels, which every frame is held to within
+        ``BASELINE_TOLERANCE``. Anchoring to the reference rather than to ``aps`` matters because
+        ``aps`` is the *previous accepted frame*: a guard measured against it lets each frame sit a
+        tolerance away from the one before, so the window can walk over a cube. The baseline is a
+        fixed property of the mask even as the pattern drifts across the detector, so it is the
+        right thing to anchor to. Falls back to ``aps`` when None, which is the faint-cube rescue
+        path, where the reference image yielded only one aperture and there is nothing to anchor to
+        until a frame succeeds.
     """
     ap_stats = ApertureStats(data, aps)
     ap_pos = ap_stats.centroid
@@ -344,11 +367,11 @@ def dimm_calc(data, aps):
     # is the rescue path analyze_dimm_cube warns about. There is no reference baseline to compare
     # against until a frame succeeds, so the guard stands down rather than rejecting the whole cube;
     # the first accepted frame supplies the two positions every later frame is then held to.
-    if len(aps.positions) == 2:
+    if ref_baseline is None and len(aps.positions) == 2:
         ref = aps.positions[1] - aps.positions[0]
         ref_baseline = np.sqrt(np.dot(ref.T, ref))
-        if ref_baseline > 0 and abs(dist_baseline - ref_baseline) > BASELINE_TOLERANCE * ref_baseline:
-            return None
+    if ref_baseline and abs(dist_baseline - ref_baseline) > BASELINE_TOLERANCE * ref_baseline:
+        return None
 
     return new_aps, [dist_baseline], ap_stats.sum
 
@@ -417,11 +440,21 @@ def analyze_dimm_cube(
 
     frame_meds = np.median(cube["data"], axis=(1, 2))
 
+    # Anchor for the per-frame baseline guard, taken once from the reference image and never from a
+    # later frame -- see dimm_calc. None when the reference yielded a single aperture, in which case
+    # the first accepted frame supplies it.
+    ref_baseline = None
+    if napertures == 2 and len(apertures.positions) == 2:
+        ref_vec = apertures.positions[1] - apertures.positions[0]
+        ref_baseline = float(np.sqrt(np.dot(ref_vec.T, ref_vec)))
+
+    abort_limit = ABORT_BAD_FRACTION * nframes
+
     for i in range(nframes):
         frame = cube["data"][i, :, :] - frame_meds[i]
 
         if napertures == 2:
-            dimm_meas = dimm_calc(frame, apertures)
+            dimm_meas = dimm_calc(frame, apertures, ref_baseline=ref_baseline)
         else:
             dimm_meas = hdimm_calc(frame, apertures)
 
@@ -431,11 +464,24 @@ def analyze_dimm_cube(
             positions.append(apertures.positions.mean(axis=0))
             fluxes.append(ap_fluxes)
             kept.append(i)
+            if ref_baseline is None:
+                ref_baseline = float(ap_distances[0])
         else:
             nbad += 1
 
-        if nbad > 100:
-            raise Exception("Hit 100 bad frame limit.")
+        if nbad > abort_limit:
+            # Nothing has centroided at all, so this is the one-aperture case the error below
+            # describes, just reached before the whole cube has been walked. Raise it in the same
+            # terms rather than reporting a runaway, which says nothing about why.
+            if not baselines:
+                raise ValueError(
+                    f"No frames yielded a usable baseline: {len(apertures.positions)} apertures in "
+                    f"the reference image, and the first {nbad} frames were all rejected."
+                )
+            raise Exception(
+                f"Abandoned after {nbad} bad frames, past the "
+                f"{ABORT_BAD_FRACTION:.0%} of {nframes} runaway limit."
+            )
 
     if not baselines:
         raise ValueError(

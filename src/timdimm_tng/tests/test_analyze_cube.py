@@ -14,6 +14,7 @@ from photutils.segmentation import make_2dgaussian_kernel
 
 from timdimm_tng.analyze_cube import (
     DIMM_IMAGE_SHAPE,
+    MAX_BAD_FRACTION,
     MIN_CADENCE_HZ,
     analyze_dimm_cube,
     dimm_calc,
@@ -321,3 +322,41 @@ def test_dimm_calc_rejects_a_noise_centroid_from_an_emptied_aperture():
     stats_ = ApertureStats(frame, aps)
     assert stats_.sum.min() > 0, "the fade must leave a marginally positive sum, or this is untested"
     assert dimm_calc(frame, aps) is None
+
+
+def test_baseline_guard_uses_the_anchor_it_is_given():
+    """
+    The anchor wins over the apertures handed in, so the tolerance cannot follow a drifting reference.
+
+    Each accepted frame becomes the next frame's aperture set, so a guard measured against `aps` is
+    measured against the previous frame. Every accepted frame may then sit up to the tolerance from
+    the one before it, and the window can walk. Anchoring to the reference image's baseline -- which
+    is a fixed property of the mask, unlike the pattern's position on the detector -- removes that.
+    """
+    aps = CircularAperture([(150.0, 200.0), (192.0, 200.0)], r=11)
+    frame = _frame_with_spots([(150.0, 200.0), (192.0, 200.0)])
+
+    # measured against the apertures themselves this is a perfect 42 px frame
+    assert dimm_calc(frame, aps) is not None
+    # against an anchor of 100 px it is not a measurement at all, and the anchor is what counts
+    assert dimm_calc(frame, aps, ref_baseline=100.0) is None
+    assert dimm_calc(frame, aps, ref_baseline=42.0) is not None
+
+
+def test_baseline_guard_falls_back_to_the_apertures_without_an_anchor():
+    """No anchor yet -- the faint-cube rescue path -- still guards against the apertures in hand."""
+    aps = CircularAperture([(150.0, 200.0), (192.0, 200.0)], r=11)
+    frame = _frame_with_spots([(150.0, 200.0)])
+    assert dimm_calc(frame, aps, ref_baseline=None) is None
+
+
+def test_max_bad_fraction_is_a_fraction_of_the_cube():
+    """
+    The gate was a bare count of 50 against cubes of 4430 frames, i.e. 1.1%.
+
+    Counting bad frames honestly (see the baseline guard) pushes real cubes past a fixed 50 while
+    leaving the surviving frames perfectly good: 20260822_bad_1 lands at 62 bad with a trustworthy
+    2.339 arcsec in it. A fraction scales with the cube instead of with its length.
+    """
+    assert MAX_BAD_FRACTION == 0.10
+    assert 0.0 < MAX_BAD_FRACTION < 1.0
