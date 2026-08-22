@@ -1,0 +1,8 @@
+[Unit]
+Description=Rotate the SALT and SAAO IO weather CSV logs
+
+[Service]
+Type=oneshot
+ExecStart=/home/timdimm/timdimm_tng/scripts/rotate_wx_logs
+PrivateTmp=true
+NoNewPrivileges=true
