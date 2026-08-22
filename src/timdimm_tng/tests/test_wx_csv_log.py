@@ -13,9 +13,11 @@ import pytest
 from timdimm_tng.wx.csv_log import (
     SAAO_IO_COLUMNS,
     SALT_COLUMNS,
+    DEDUP_EXCLUDED,
+    HEARTBEAT_SECONDS,
     ensure_header,
     format_row,
-    last_logged_timestamp,
+    last_logged_fields,
     log_reading,
     saao_io_row,
     salt_row,
@@ -65,10 +67,13 @@ def test_saao_io_row_drops_the_arrays_and_the_atlas_fields():
         assert dropped not in row
 
 
-def test_saao_io_row_carries_the_seeing_monitor():
+def test_saao_io_row_drops_the_seeing_we_measured_ourselves():
+    # IO's seeing field is timdimm's own value fed back to us, ~26 s stale: 112 of the 116 rows
+    # logged on 2026-08-22 appear verbatim in our seeing.csv. Logging it here would archive the
+    # same measurement twice and invite it being mistaken for an independent check.
     row = saao_io_row(LIVE_SAAO_IO, "2026-08-22T19:53:10.000")
-    assert row["seeing"] == 1.75
-    assert row["seeing_timestamp"] == "2026-08-22T21:53:04"
+    assert "seeing" not in row
+    assert "seeing_timestamp" not in row
 
 
 def test_salt_row_uses_the_parsed_sast_datetime():
@@ -80,8 +85,8 @@ def test_salt_row_uses_the_parsed_sast_datetime():
 
 
 def test_salt_row_writes_the_shutter_state_as_a_bool():
-    assert salt_row(LIVE_SALT, "t")["Open"] is True
-    assert salt_row(dict(LIVE_SALT, Open=False), "t")["Open"] is False
+    assert salt_row(LIVE_SALT, "2026-08-22T19:53:10.000")["Open"] is True
+    assert salt_row(dict(LIVE_SALT, Open=False), "2026-08-22T19:53:10.000")["Open"] is False
 
 
 # ---------------------------------------------------------------- formatting
@@ -147,27 +152,32 @@ def test_ensure_header_does_not_clobber_an_earlier_rotation(tmp_path):
 # ---------------------------------------------------------------- dedup
 
 
-def test_last_logged_timestamp_is_none_for_a_header_only_file(tmp_path):
+def test_last_logged_fields_is_none_for_a_header_only_file(tmp_path):
     path = tmp_path / "wx.csv"
     ensure_header(path, "time,timestamp_sast\n")
-    assert last_logged_timestamp(path, 1) is None
+    assert last_logged_fields(path) is None
 
 
-def test_last_logged_timestamp_is_none_for_a_missing_file(tmp_path):
-    assert last_logged_timestamp(tmp_path / "nope.csv", 1) is None
+def test_last_logged_fields_is_none_for_a_missing_file(tmp_path):
+    assert last_logged_fields(tmp_path / "nope.csv") is None
 
 
-def test_last_logged_timestamp_reads_the_final_row(tmp_path):
+def test_last_logged_fields_reads_the_final_row(tmp_path):
     path = tmp_path / "wx.csv"
     path.write_text("time,timestamp_sast\nA,1\nB,2\n")
-    assert last_logged_timestamp(path, 1) == "2"
+    assert last_logged_fields(path) == ["B", "2"]
 
 
-def test_last_logged_timestamp_survives_a_partial_final_line(tmp_path):
+def test_last_logged_fields_survives_a_partial_final_line(tmp_path):
     # a row half-written when the machine went down must not poison every later comparison
     path = tmp_path / "wx.csv"
     path.write_text("time,timestamp_sast\nA,1\nB")
-    assert last_logged_timestamp(path, 1) is None
+    assert last_logged_fields(path) is None
+
+
+def test_only_the_two_clock_columns_are_excluded_from_the_dedup_key():
+    # everything that is not one of our two clocks is part of the reading, Valid included
+    assert DEDUP_EXCLUDED == ("time", "timestamp_sast")
 
 
 # ---------------------------------------------------------------- log_reading
@@ -185,19 +195,84 @@ def test_log_reading_writes_a_first_row(tmp_path):
     assert len(lines) == 2
 
 
-def test_log_reading_skips_a_repeat_of_the_same_station_timestamp(tmp_path):
+def test_log_reading_skips_a_repeat_of_the_same_reading(tmp_path):
     path = tmp_path / "saao_io.csv"
     _log(path, LIVE_SAAO_IO)
     assert _log(path, LIVE_SAAO_IO, now="2026-08-22T19:53:12.000") is False
     assert len(_lines(path)) == 2
 
 
-def test_log_reading_writes_again_once_the_station_clock_advances(tmp_path):
+def test_log_reading_skips_a_reading_whose_only_change_is_the_station_clock(tmp_path):
+    # the whole point: SALT republishes its XML every 5 s while the BMS underneath it updates
+    # once a minute, so an advanced station clock over identical measurements is not a new reading
     path = tmp_path / "saao_io.csv"
     _log(path, LIVE_SAAO_IO)
-    later = dict(LIVE_SAAO_IO, timestamp="2026-08-22T21:54:07")
-    assert _log(path, later, now="2026-08-22T19:54:10.000") is True
+    ticked = dict(LIVE_SAAO_IO, timestamp="2026-08-22T21:53:12")
+    assert _log(path, ticked, now="2026-08-22T19:53:15.000") is False
+    assert len(_lines(path)) == 2
+
+
+def test_log_reading_writes_again_once_a_measurement_changes(tmp_path):
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO)
+    gust = dict(LIVE_SAAO_IO, timestamp="2026-08-22T21:54:07", wind=24.11)
+    assert _log(path, gust, now="2026-08-22T19:54:10.000") is True
     assert len(_lines(path)) == 3
+
+
+def test_log_reading_writes_when_only_valid_changes(tmp_path):
+    # a station going stale under unchanged numbers is exactly the transition worth recording
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO)
+    assert _log(path, dict(LIVE_SAAO_IO, Valid=False), now="2026-08-22T19:53:40.000") is True
+
+
+def test_log_reading_compares_formatted_values_not_raw_ones(tmp_path):
+    # the file stores two decimals, so a change below that is not visible in it and must not
+    # produce a row that looks identical to the one above it
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO)
+    jitter = dict(LIVE_SAAO_IO, temperature=LIVE_SAAO_IO["temperature"] + 0.0001)
+    assert _log(path, jitter, now="2026-08-22T19:53:40.000") is False
+
+
+def test_log_reading_writes_a_heartbeat_once_the_interval_passes(tmp_path):
+    # value dedup alone makes a frozen station indistinguishable from steady conditions, which is
+    # the one failure this log exists to catch, so an unchanged reading still lands eventually
+    path = tmp_path / "saao_io.csv"
+    first = datetime.datetime(2026, 8, 22, 19, 53, 10)
+    _log(path, LIVE_SAAO_IO, now=first.isoformat())
+    early = first + datetime.timedelta(seconds=HEARTBEAT_SECONDS - 1)
+    assert _log(path, LIVE_SAAO_IO, now=early.isoformat()) is False
+    due = first + datetime.timedelta(seconds=HEARTBEAT_SECONDS)
+    assert _log(path, LIVE_SAAO_IO, now=due.isoformat()) is True
+
+
+def test_the_heartbeat_row_carries_the_current_clocks(tmp_path):
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO, now="2026-08-22T19:53:10.000")
+    ticked = dict(LIVE_SAAO_IO, timestamp="2026-08-22T21:59:07")
+    _log(path, ticked, now="2026-08-22T19:59:10.000")
+    row = dict(zip(SAAO_IO_COLUMNS, _lines(path)[-1].split(",")))
+    assert row["time"] == "2026-08-22T19:59:10.000"
+    assert row["timestamp_sast"] == "2026-08-22T21:59:07"
+
+
+def test_log_reading_writes_when_the_log_clock_goes_backwards(tmp_path):
+    # a clock correction must not be able to suppress readings until it catches up again
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO, now="2026-08-22T19:53:10.000")
+    assert _log(path, LIVE_SAAO_IO, now="2026-08-22T18:00:00.000") is True
+
+
+def test_log_reading_writes_when_the_last_log_time_is_unreadable(tmp_path):
+    path = tmp_path / "saao_io.csv"
+    _log(path, LIVE_SAAO_IO)
+    lines = _lines(path)
+    fields = lines[-1].split(",")
+    fields[0] = "not-a-time"
+    path.write_text("\n".join(lines[:-1] + [",".join(fields)]) + "\n")
+    assert _log(path, LIVE_SAAO_IO, now="2026-08-22T19:53:12.000") is True
 
 
 def test_log_reading_skips_a_reading_with_no_station_timestamp(tmp_path):
@@ -233,13 +308,24 @@ def test_log_reading_rotates_when_the_columns_change(tmp_path):
 
 def test_log_reading_handles_salt_too(tmp_path):
     path = tmp_path / "salt_wx.csv"
-    assert log_reading(path, LIVE_SALT, salt_row, SALT_COLUMNS, "t") is True
-    assert log_reading(path, LIVE_SALT, salt_row, SALT_COLUMNS, "t2") is False
+    assert log_reading(path, LIVE_SALT, salt_row, SALT_COLUMNS, "2026-08-22T19:53:10.000") is True
+    assert log_reading(path, LIVE_SALT, salt_row, SALT_COLUMNS, "2026-08-22T19:53:15.000") is False
+
+
+def test_log_reading_skips_salt_when_only_the_xml_publish_clock_ticks(tmp_path):
+    # TimeStamp_SAST comes from tcs_xml_time_info__timestamp -- when the TCS published the XML,
+    # not when the BMS took the reading. On 2026-08-22 that inflated an hour of SALT from 72 real
+    # readings to 844 rows.
+    path = tmp_path / "salt_wx.csv"
+    log_reading(path, LIVE_SALT, salt_row, SALT_COLUMNS, "2026-08-22T19:53:10.000")
+    republished = dict(LIVE_SALT, TimeStamp_SAST=datetime.datetime(2026, 8, 22, 21, 53, 5))
+    assert log_reading(path, republished, salt_row, SALT_COLUMNS, "2026-08-22T19:53:15.000") is False
+    assert len(_lines(path)) == 2
 
 
 def test_log_reading_skips_salt_when_the_bms_is_invalid(tmp_path):
     path = tmp_path / "salt_wx.csv"
-    assert log_reading(path, {"Valid": False}, salt_row, SALT_COLUMNS, "t") is False
+    assert log_reading(path, {"Valid": False}, salt_row, SALT_COLUMNS, "2026-08-22T19:53:10.000") is False
     assert not path.exists()
 
 

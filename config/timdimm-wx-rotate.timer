@@ -1,0 +1,11 @@
+[Unit]
+Description=Rotate the weather CSV logs daily at 10:00 UTC
+
+[Timer]
+OnCalendar=*-*-* 10:00:00 UTC
+AccuracySec=1s
+Persistent=true
+Unit=timdimm-wx-rotate.service
+
+[Install]
+WantedBy=timers.target

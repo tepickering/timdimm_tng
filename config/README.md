@@ -32,3 +32,24 @@ The timer stops the logger daily at 10:00 UTC (local noon), moves `~/adafruit.cs
 systemctl list-timers adafruit-sht45-rotate.timer
 journalctl -u adafruit-sht45-rotate.service
 ```
+
+## Weather CSV rotation
+
+`status.py` appends SALT and SAAO IO readings to `~/salt_wx.csv` and `~/saao_io.csv` as the roof
+interface polls them. Link the rotation service and timer in the same way:
+
+```bash
+sudo ln -s /home/timdimm/timdimm_tng/config/timdimm-wx-rotate.service /etc/systemd/system/timdimm-wx-rotate.service
+sudo ln -s /home/timdimm/timdimm_tng/config/timdimm-wx-rotate.timer /etc/systemd/system/timdimm-wx-rotate.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now timdimm-wx-rotate.timer
+```
+
+At 10:00 UTC the timer moves each CSV to `~/<name>-YYYY-MM-DD.csv.gz`, matching the Adafruit
+archives so the three logs can be joined over the long run. Nothing is stopped first: `status.py`
+opens and closes each file once per row, and the next append writes a fresh header. Check it with:
+
+```bash
+systemctl list-timers timdimm-wx-rotate.timer
+journalctl -u timdimm-wx-rotate.service
+```

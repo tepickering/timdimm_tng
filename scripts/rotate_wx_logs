@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Rotate the SALT and SAAO IO weather CSVs into dated gzip archives, matching the scheme
+# rotate_adafruit_log uses for the SHT45 sensor log so the three can be joined over the long run.
+#
+# Nothing needs stopping first. status.py opens and closes each CSV once per row, and
+# csv_log.ensure_header writes a fresh header whenever the file is missing, so the next append
+# after a rotation simply starts a new file. A row written between the rename and that append
+# lands in the archive, which is where a reading taken before the rotation belongs.
+
+set -euo pipefail
+
+readonly log_dir="${WX_LOG_DIR:-/home/timdimm}"
+readonly date_stamp="${WX_ROTATION_DATE:-$(date -u +%Y-%m-%d)}"
+readonly logs=(salt_wx saao_io)
+
+status=0
+
+for name in "${logs[@]}"; do
+    log_file="${log_dir}/${name}.csv"
+    archive_file="${log_dir}/${name}-${date_stamp}.csv"
+
+    # a clouded-out day may never start the roof interface, so no file is a normal outcome
+    if [[ ! -e "$log_file" ]]; then
+        echo "No weather CSV to rotate: $log_file"
+        continue
+    fi
+
+    # ".csv" as well as ".csv.gz": an earlier run may have died between the rename and the gzip
+    if [[ -e "$archive_file" || -e "${archive_file}.gz" ]]; then
+        echo "Refusing to overwrite existing weather archive: ${archive_file}.gz" >&2
+        status=1
+        continue
+    fi
+
+    # one station's problem must not cost the other a day of data, so keep going either way
+    mv -- "$log_file" "$archive_file"
+    gzip -- "$archive_file"
+    echo "Created ${archive_file}.gz"
+done
+
+exit "$status"
