@@ -75,11 +75,24 @@ cam.record_frames(10, savedir="/home/timdimm", filename="find_boxes.ser")
 time.sleep(3)
 aperture_data = load_ser_file("/home/timdimm/find_boxes.ser")
 aperture_image = np.mean(aperture_data['data'], axis=0)
-aps = find_apertures(aperture_image, threshold=PROBE_THRESHOLD, brightest=2)
-ap_stats = ApertureStats(aperture_image, aps[0])
-centroids = ap_stats.centroid
+# find_apertures raises when nothing clears the threshold rather than returning an empty set, so
+# the no-detection case needs catching here too. Untangled on 2026-08-22: the probe was raising,
+# not returning one aperture, and the traceback went to stderr instead of the log below.
+try:
+    aps = find_apertures(aperture_image, threshold=PROBE_THRESHOLD, brightest=2)
+    ap_stats = ApertureStats(aperture_image, aps[0])
+    centroids = ap_stats.centroid
+except Exception as e:
+    log.warning(f"Failed to find apertures: {e}")
+    os.system("mv ~/find_boxes.ser ~/last_bad_find_boxes.ser")
+    sys.exit(0)
+
 if len(centroids) != 2:
-    log.warning("Failed to find two apertures.")
+    # the probe is a 10-frame mean, so a lone detection means the prism spot fell under the cut
+    log.warning(
+        f"Failed to find two apertures: found {len(centroids)} at {PROBE_THRESHOLD} sigma."
+    )
+    os.system("mv ~/find_boxes.ser ~/last_bad_find_boxes.ser")
     sys.exit(0)
 
 x, y = np.mean(ap_stats.centroid, axis=0)
