@@ -393,7 +393,7 @@ def scintillation_stats(results):
 CSV_COLUMNS = (
     "time", "target", "throughput", "scint_index_raw", "tau_motion_ms", "tau_scint_ms",
     "tau_scint_censored", "acf1_ratio", "acf2_ratio", "cadence_hz", "n_frames", "n_kept",
-    "mean_flux_bright", "mean_flux_faint", "frac_rejected", "airmass", "exptime",
+    "mean_flux_bright", "mean_flux_faint", "frac_rejected", "airmass", "exptime", "gain", "offset",
 )
 
 CSV_HEADER = ",".join(CSV_COLUMNS) + "\n"
@@ -437,7 +437,7 @@ def ensure_header(path):
         fp.write(CSV_HEADER)
 
 
-def format_row(stats, time, target, exptime, airmass):
+def format_row(stats, time, target, exptime, airmass, *, gain, offset):
     """
     Format one scintillation.csv row, newline included.
 
@@ -449,8 +449,16 @@ def format_row(stats, time, target, exptime, airmass):
     exists for cubes that never reach seeing.csv. It is needed to interpret the index at all --
     scintillation goes roughly as sec(z)**3, while the seeing analyze_dimm_cube reports has already
     been divided by airmass**0.6. Written at the same precision seeing.csv uses.
+
+    ``gain`` and ``offset`` are keyword-only and have no defaults on purpose. They cannot be
+    recovered from the cube -- the SER header's ``Observer``, ``Instrument`` and ``Telescope``
+    fields are all literally "Unknown" -- so the only record of them is what the acquisition script
+    set, and a silently assumed default would be worse than no column at all. ``exptime`` is what
+    now varies per target (see ``timdimm_tng.exposure``); these two are pinned, and are logged so
+    that a later change to them stays legible in the archive.
     """
-    values = dict(stats, time=time, target=target, exptime=exptime, airmass=airmass)
+    values = dict(stats, time=time, target=target, exptime=exptime, airmass=airmass,
+                  gain=gain, offset=offset)
     fields = []
     for column in CSV_COLUMNS:
         value = values[column]

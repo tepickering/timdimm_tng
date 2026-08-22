@@ -640,7 +640,7 @@ def test_a_zero_flux_aperture_gives_nan_throughput_without_raising():
 
 def test_the_row_has_one_field_per_header_column():
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234, gain=200, offset=1)
 
     assert row.endswith("\n")
     assert CSV_HEADER.endswith("\n")
@@ -699,7 +699,7 @@ def test_rotation_does_not_overwrite_an_earlier_rotation(tmp_path):
 
 def test_the_row_starts_with_the_join_key():
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234, gain=200, offset=1)
     fields = row.strip().split(",")
 
     assert CSV_HEADER.strip().split(",")[:2] == ["time", "target"]
@@ -712,7 +712,7 @@ def test_the_row_round_trips_through_csv():
     import io
 
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234, gain=200, offset=1)
 
     parsed = list(csv.DictReader(io.StringIO(CSV_HEADER + row)))[0]
 
@@ -723,7 +723,7 @@ def test_the_row_round_trips_through_csv():
 
 def test_nan_values_are_written_as_nan_and_parse_back_as_nan():
     stats = scintillation_stats(fake_results(n=MIN_KEPT - 1, nbad=100))
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234, gain=200, offset=1)
 
     fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
 
@@ -781,7 +781,7 @@ def test_the_row_carries_the_airmass():
     correlating strongly within a single night (+0.77), and this is the leading suspect.
     """
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234, gain=200, offset=1)
 
     fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
 
@@ -792,8 +792,49 @@ def test_the_row_carries_the_airmass():
 def test_the_airmass_matches_the_precision_seeing_csv_uses():
     """seeing.csv writes airmass as {:.3f}; the two files are meant to be joined and compared."""
     stats = scintillation_stats(fake_results())
-    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.0)
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.0, gain=200, offset=1)
 
     fields = dict(zip(CSV_HEADER.strip().split(","), row.strip().split(",")))
 
     assert fields["airmass"] == "1.000"
+
+
+def test_gain_and_offset_are_logged():
+    """
+    Provenance the cube itself cannot supply.
+
+    The SER header carries nothing usable -- ``Observer``, ``Instrument`` and ``Telescope`` are all
+    literally "Unknown" -- so the gain a cube was taken at is recoverable only from what the
+    acquisition script set. Unlogged, an archive spanning a gain change cannot be interpreted at all.
+    """
+    assert "gain" in CSV_COLUMNS
+    assert "offset" in CSV_COLUMNS
+    stats = scintillation_stats(fake_results())
+    row = format_row(stats, "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234,
+                     gain=200, offset=1)
+    fields = dict(zip(CSV_COLUMNS, row.strip().split(",")))
+    assert fields["gain"] == "200"
+    assert fields["offset"] == "1"
+
+
+def test_gain_and_offset_are_required():
+    """No default. A silently assumed gain is worse than no column at all."""
+    with pytest.raises(TypeError):
+        format_row(scintillation_stats(fake_results()),
+                   "2024-05-05T01:57:00.000", "Achernar", 0.001, 1.234)
+
+
+def test_adding_gain_rotates_a_pre_gain_file(tmp_path):
+    """The 2026-08 production file has no gain column; its rows must survive the upgrade."""
+    path = tmp_path / "scintillation.csv"
+    old_header = ("time,target,throughput,scint_index_raw,tau_motion_ms,tau_scint_ms,"
+                  "tau_scint_censored,acf1_ratio,acf2_ratio,cadence_hz,n_frames,n_kept,"
+                  "mean_flux_bright,mean_flux_faint,frac_rejected,airmass,exptime\n")
+    path.write_text(old_header + "2026-08-19T00:00:00.000,Achernar," + ",".join(["0"] * 15) + "\n")
+
+    ensure_header(path)
+
+    assert path.read_text() == CSV_HEADER
+    rotated = [p for p in tmp_path.iterdir() if p.name.startswith("scintillation.csv.")]
+    assert len(rotated) == 1
+    assert rotated[0].read_text().startswith(old_header)

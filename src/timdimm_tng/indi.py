@@ -127,6 +127,32 @@ class INDI_Camera(INDI_Device):
         """
         self.set_prop("STREAMING_EXPOSURE", "STREAMING_EXPOSURE_VALUE", exptime)
 
+    def set_gain(self, gain):
+        """
+        Set the camera's analogue gain.
+
+        ZWO's ``Gain`` is an index in units of 0.1 dB, not a conversion factor in e-/ADU. Set and
+        left alone rather than tuned per target: see ``timdimm_tng.exposure`` for the value in use
+        and why the exposure varies instead.
+
+        Arguments
+        ---------
+        gain : int
+            Gain index
+        """
+        self.set_prop("CCD_CONTROLS", "Gain", gain)
+
+    def set_offset(self, offset):
+        """
+        Set the camera's black level.
+
+        Arguments
+        ---------
+        offset : int
+            Offset in ADU
+        """
+        self.set_prop("CCD_CONTROLS", "Offset", offset)
+
     def record_frames(self, nframes, savedir=None, filename=None):
         """
         Record a video nframes long
