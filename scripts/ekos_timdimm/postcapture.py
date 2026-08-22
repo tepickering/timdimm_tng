@@ -19,6 +19,7 @@ from timdimm_tng.indi import INDI_Camera
 from timdimm_tng.ser import load_ser_file
 from timdimm_tng.analyze_cube import (
     DIMM_IMAGE_SHAPE,
+    MAX_BAD_FRACTION,
     MIN_CADENCE_HZ,
     find_apertures,
     analyze_dimm_cube,
@@ -171,7 +172,12 @@ if not seeing_data['seeing_valid']:
     os.system("mv ~/seeing.ser ~/last_bad_seeing.ser")
 elif np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seeing'].value < 10.0:
     log.info(f"Seeing: {seeing_data['seeing']:.2f}; N bad: {seeing_data['N_bad']}")
-    if seeing_data['N_bad'] < 50:
+    # A share of the cube rather than a bare count of 50, which was 1.1% of a 4430-frame cube and
+    # was chosen while mis-centroided frames were still being silently accepted instead of counted.
+    # The baseline guard counts them honestly now, so strong scintillation pushes a good cube past
+    # 50 with thousands of sound frames left in it.
+    n_total = seeing_data['N_bad'] + len(seeing_data['frame_index'])
+    if seeing_data['N_bad'] < MAX_BAD_FRACTION * n_total:
         csv_file = Path.home() / "seeing.csv"
         if not csv_file.exists():
             with open(csv_file, 'w') as fp:
@@ -195,7 +201,10 @@ elif np.isfinite(seeing_data['seeing'].value) and MIN_SEEING < seeing_data['seei
         # os.system("scp -q /home/timdimm/seeing.txt massdimm@seeing.suth.saao.ac.za:~/timDIMM/.")
         os.system("mv ~/seeing.ser ~/last_good_seeing.ser")
     else:
-        log.warning("Too many bad frames in seeing data.")
+        log.warning(
+            f"Too many bad frames in seeing data: {seeing_data['N_bad']}/{n_total} rejected, "
+            f"past the {MAX_BAD_FRACTION:.0%} limit."
+        )
         os.system("mv ~/seeing.ser ~/last_bad_seeing.ser")
 
 else:
