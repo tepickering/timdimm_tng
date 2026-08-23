@@ -78,6 +78,37 @@ def throughput(bright, faint):
 CONDENSATION_THROUGHPUT = 0.5
 
 
+#: Prism throughput below which condensation has gone past a warning and the cube is barely
+#: usable photometrically. On 2026-08-22 the ratio spent 45 minutes under this, bottoming at 0.05,
+#: while the clear aperture held full flux -- the prism was passing about a twentieth of its light.
+SEVERE_CONDENSATION_THROUGHPUT = 0.1
+
+
+def throughput_level(value):
+    """
+    Severity band for a throughput reading, for display.
+
+    Parameters
+    ----------
+    value : float
+        A prism throughput, as `throughput` returns it.
+
+    Returns
+    -------
+    str or None
+        ``"ok"``, ``"warning"`` or ``"severe"``; ``None`` for a NaN, which is a failed measurement
+        and not a statement about the optics. A reading exactly on a threshold belongs to the band
+        above it, so this agrees with `condensation_likely` at every value.
+    """
+    if not value == value:            # NaN
+        return None
+    if value < SEVERE_CONDENSATION_THROUGHPUT:
+        return "severe"
+    if value < CONDENSATION_THROUGHPUT:
+        return "warning"
+    return "ok"
+
+
 def condensation_likely(value):
     """
     Whether a throughput reading indicates dew on the optics.
