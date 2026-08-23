@@ -63,6 +63,71 @@ def throughput(bright, faint):
     return float(faint.sum() / bright.sum())
 
 
+#: Prism throughput below which condensation is assumed to be forming on the optics. Dry-night
+#: values run 0.62 (Fomalhaut) to 0.70 (Canopus) -- that spread is the target flux systematic, not
+#: the optics -- so 0.5 sits well clear of every clean target.
+#:
+#: Anchored on the night of 2026-08-22, when the ratio fell from 0.66 to 0.08 over two hours while
+#: the bright aperture held 0.94-1.00 of its flux throughout, then recovered to 0.686 within 30
+#: minutes of a dry airmass arriving. The loss being confined to the faint aperture is what makes
+#: this a condensation detector rather than a cloud or transparency one. It is not a data-quality
+#: gate: centroiding survives the flux loss, and that night's cubes rejected no frames at all.
+#:
+#: It fires well before the humidity limits do. SALT peaked at 82% RH against a 90% limit that
+#: night and never tripped, while the dewpoint depression at the telescope sat near 3.5 C.
+CONDENSATION_THROUGHPUT = 0.5
+
+
+#: Prism throughput below which condensation has gone past a warning and the cube is barely
+#: usable photometrically. On 2026-08-22 the ratio spent 45 minutes under this, bottoming at 0.05,
+#: while the clear aperture held full flux -- the prism was passing about a twentieth of its light.
+SEVERE_CONDENSATION_THROUGHPUT = 0.1
+
+
+def throughput_level(value):
+    """
+    Severity band for a throughput reading, for display.
+
+    Parameters
+    ----------
+    value : float
+        A prism throughput, as `throughput` returns it.
+
+    Returns
+    -------
+    str or None
+        ``"ok"``, ``"warning"`` or ``"severe"``; ``None`` for a NaN, which is a failed measurement
+        and not a statement about the optics. A reading exactly on a threshold belongs to the band
+        above it, so this agrees with `condensation_likely` at every value.
+    """
+    if not value == value:            # NaN
+        return None
+    if value < SEVERE_CONDENSATION_THROUGHPUT:
+        return "severe"
+    if value < CONDENSATION_THROUGHPUT:
+        return "warning"
+    return "ok"
+
+
+def condensation_likely(value):
+    """
+    Whether a throughput reading indicates dew on the optics.
+
+    Parameters
+    ----------
+    value : float
+        A prism throughput, as `throughput` returns it.
+
+    Returns
+    -------
+    bool
+        Whether the reading is below `CONDENSATION_THROUGHPUT`. NaN is not a warning: `throughput`
+        returns it for a cube whose apertures did not sum to positive flux, which is a failed
+        measurement rather than evidence about the optics.
+    """
+    return bool(value < CONDENSATION_THROUGHPUT)
+
+
 def flux_ratio(bright, faint):
     """Per-frame ratio of the faint (prism) aperture to the bright (clear) one."""
     bright = np.asarray(bright, dtype=float)

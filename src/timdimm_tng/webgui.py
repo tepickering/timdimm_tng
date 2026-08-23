@@ -7,13 +7,15 @@ import csv
 import io
 import json
 import subprocess
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
+from timdimm_tng.scintillation import throughput_level
+from timdimm_tng.wx.adafruit import latest_measurement, measurement_is_stale
 from timdimm_tng.timdimm_startstop import timdimm_start, timdimm_stop
 
 app = FastAPI(title="timDIMM Web Interface")
@@ -22,6 +24,14 @@ STATUS_FILE = Path.home() / "ox_wagon_status.json"
 STOP_FILE = Path.home() / "STOP"
 SEEING_FILE = Path.home() / "seeing.csv"
 SEEING_TXT = Path.home() / "seeing.txt"
+ADAFRUIT_FILE = Path.home() / "adafruit.csv"
+SCINTILLATION_FILE = Path.home() / "scintillation.csv"
+
+#: How old the last cube may be before its throughput is shown as stale. Cubes land every ~40 s
+#: while observing, but slews and target changes open gaps of several minutes, and the file stops
+#: growing entirely between nights. Generous enough not to cry wolf mid-schedule, short enough that
+#: a value left over from hours ago never reads as the current state of the optics.
+THROUGHPUT_MAX_AGE = timedelta(minutes=15)
 LOG_FILES = {
     "oxwagon": Path.home() / "ox_wagon.log",
     "seeing": Path.home() / "timdimm.log",
@@ -56,6 +66,10 @@ HTML_PAGE = """\
   td.spacer { width: 1.5rem; }
   .on  { color: #2ecc71; }
   .off { color: #e74c3c; }
+  td.val.warn   { color: #f1c40f; }
+  td.val.alert  { color: #e74c3c; }
+  td.val.stale, td.age.stale { color: #636e72; }
+  td.age { text-align: right; font-size: 0.75rem; color: #8395a7; padding-left: 0; }
   .toggle-btn {
     display: block; width: 100%; padding: 0.9rem;
     font-size: 1.1rem; font-weight: 700; border: none; border-radius: 6px;
@@ -99,6 +113,11 @@ HTML_PAGE = """\
 <div class="card">
   <h2>Latest Seeing Measurement</h2>
   <table id="seeing-table"><tbody></tbody></table>
+</div>
+
+<div class="card">
+  <h2>Conditions</h2>
+  <table id="conditions-table"><tbody></tbody></table>
 </div>
 
 <div class="card">
@@ -244,6 +263,53 @@ async function fetchSeeing() {
   } catch (e) { /* seeing data unavailable — leave stale */ }
 }
 
+function fmtAge(seconds) {
+  if (seconds == null) return "";
+  if (seconds < 90) return Math.round(seconds) + " s ago";
+  if (seconds < 5400) return Math.round(seconds / 60) + " min ago";
+  return (seconds / 3600).toFixed(1) + " h ago";
+}
+
+async function fetchConditions() {
+  try {
+    const resp = await fetch("/api/conditions");
+    if (!resp.ok) throw new Error(resp.statusText);
+    const data = await resp.json();
+    const tbody = document.querySelector("#conditions-table tbody");
+    tbody.innerHTML = "";
+
+    function row(label, value, cls, age, stale) {
+      const tr = document.createElement("tr");
+      const c = (cls ? cls + " " : "") + (stale ? "stale" : "");
+      tr.innerHTML = `<td class="label">${label}</td><td class="val ${c}">${value}</td>` +
+                     `<td class="age ${stale ? "stale" : ""}">${age}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const s = data.sht45;
+    if (s) {
+      const age = fmtAge(s.age) + (s.stale ? " \u2014 stale" : "");
+      row("SHT45 temperature", s.temperature == null ? "\u2014" : s.temperature.toFixed(2) + " \u00b0C",
+          "", age, s.stale);
+      row("SHT45 humidity", s.humidity.toFixed(1) + " %", "", age, s.stale);
+    } else {
+      row("SHT45", "unavailable", "alert", "", false);
+    }
+
+    const t = data.throughput;
+    if (t) {
+      // a stale reading is greyed out whatever its value: it describes the optics as they were,
+      // not as they are, and colouring it would assert something we cannot see
+      const cls = t.stale ? "" : (t.level === "severe" ? "alert" : t.level === "warning" ? "warn" : "");
+      const shown = t.value == null ? "\u2014" : t.value.toFixed(3);
+      const label = "Prism throughput" + (t.target ? " (" + t.target + ")" : "");
+      row(label, shown, cls, fmtAge(t.age) + (t.stale ? " \u2014 stale" : ""), t.stale);
+    } else {
+      row("Prism throughput", "no cubes yet", "", "", true);
+    }
+  } catch (e) { /* conditions unavailable \u2014 leave stale */ }
+}
+
 async function toggle() {
   const btn = document.getElementById("toggle");
   btn.disabled = true;
@@ -298,8 +364,10 @@ function switchLog() {
 initChart();
 fetchStatus();
 fetchSeeing();
+fetchConditions();
 setInterval(fetchStatus, 5000);
 setInterval(fetchSeeing, 5000);
+setInterval(fetchConditions, 5000);
 connectLog("oxwagon");
 </script>
 </body>
@@ -360,7 +428,11 @@ def _read_seeing_csv():
 
     latest = dict(rows[-1][2])
     try:
-        latest["seeing"] = f'{float(latest["seeing"]):.3f}"'
+        latest["seeing"] = f'{float(latest["seeing"]):.2f}"'
+    except (KeyError, ValueError):
+        pass
+    try:
+        latest["airmass"] = f'{float(latest["airmass"]):.2f}'
     except (KeyError, ValueError):
         pass
     try:
@@ -368,7 +440,7 @@ def _read_seeing_csv():
     except (KeyError, ValueError):
         pass
     try:
-        latest["exptime"] = f'{float(latest["exptime"]) * 1000:.0f} ms'
+        latest["exptime"] = f'{float(latest["exptime"]) * 1000:.1f} ms'
     except (KeyError, ValueError):
         pass
     cutoff = rows[-1][0] - timedelta(hours=12)
@@ -384,6 +456,105 @@ def _read_seeing_csv():
 async def seeing():
     latest, history = _read_seeing_csv()
     return JSONResponse({"latest": latest, "history": history})
+
+
+def _last_csv_row(path):
+    """
+    The last complete data row of a CSV, as a dict keyed by column.
+
+    Both files this reads are appended to while the page polls them, so the final line is regularly
+    half written. Such a line is skipped in favour of the one before it rather than returned with
+    missing fields, and anything unreadable comes back as ``None`` -- the page must keep rendering
+    whatever the loggers are doing.
+
+    Parameters
+    ----------
+    path : ~pathlib.Path
+        The CSV to read.
+
+    Returns
+    -------
+    dict or None
+        The last complete row, or ``None`` if the file is absent, empty, header-only, or holds no
+        complete row.
+    """
+    path = Path(path)
+    if not path.exists():
+        return None
+
+    try:
+        with path.open() as fp:
+            header = fp.readline().strip()
+        if not header:
+            return None
+        result = subprocess.run(
+            ["tail", "-5", str(path)], capture_output=True, text=True, timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    columns = header.split(",")
+    reader = csv.DictReader(io.StringIO(header + "\n" + result.stdout), fieldnames=columns)
+    complete = [
+        row for row in reader
+        if row.get(columns[0]) != columns[0]                     # skip the header if tail caught it
+        and None not in row.values() and None not in row         # no short row, no extra fields
+    ]
+    return dict(complete[-1]) if complete else None
+
+
+def _sht45_conditions(now):
+    """The last SHT45 reading, or ``None`` if the log cannot be read."""
+    try:
+        measurement = latest_measurement(ADAFRUIT_FILE)
+    except (OSError, ValueError):
+        return None
+    return {
+        "temperature": measurement.temperature,
+        "humidity": measurement.humidity,
+        "time": measurement.timestamp.isoformat(),
+        "age": (now - measurement.timestamp).total_seconds(),
+        "stale": measurement_is_stale(measurement.timestamp, now=now),
+    }
+
+
+def _throughput_conditions(now):
+    """The last cube's prism throughput and its severity band, or ``None``."""
+    row = _last_csv_row(SCINTILLATION_FILE)
+    if row is None:
+        return None
+
+    try:
+        stamp = datetime.fromisoformat(row["time"])
+    except (KeyError, ValueError):
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+
+    try:
+        value = float(row["throughput"])
+    except (KeyError, TypeError, ValueError):
+        value = None
+
+    return {
+        "value": value,
+        "level": None if value is None else throughput_level(value),
+        "target": row.get("target"),
+        "time": stamp.isoformat(),
+        "age": (now - stamp).total_seconds(),
+        "stale": now - stamp > THROUGHPUT_MAX_AGE,
+    }
+
+
+def _conditions(now=None):
+    """SHT45 temperature and humidity alongside the last cube's prism throughput."""
+    now = datetime.now(UTC) if now is None else now
+    return {"sht45": _sht45_conditions(now), "throughput": _throughput_conditions(now)}
+
+
+@app.get("/api/conditions")
+async def conditions():
+    return JSONResponse(_conditions())
 
 
 @app.post("/api/toggle")

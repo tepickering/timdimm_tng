@@ -78,3 +78,42 @@ class TestAdafruitWeather(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAdafruitTemperature(unittest.TestCase):
+    def setUp(self):
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.log_path = Path(self.tmp_dir.name) / "adafruit.csv"
+
+    def tearDown(self):
+        self.tmp_dir.cleanup()
+
+    def test_the_measurement_carries_the_temperature(self):
+        self.log_path.write_text("2026-08-22T21:30:00.000Z,6.41,76.3\n")
+
+        self.assertEqual(latest_measurement(self.log_path).temperature, 6.41)
+
+    def test_a_malformed_temperature_does_not_break_the_humidity_reading(self):
+        # adafruit.py sits on the roof-safety path in status.py, which needs only the humidity.
+        # A junk temperature field must not start raising where the humidity is still readable.
+        self.log_path.write_text("2026-08-22T21:30:00.000Z,----,76.3\n")
+
+        measurement = latest_measurement(self.log_path)
+
+        self.assertEqual(measurement.humidity, 76.3)
+        self.assertIsNone(measurement.temperature)
+
+    def test_a_non_finite_temperature_reads_as_missing(self):
+        self.log_path.write_text("2026-08-22T21:30:00.000Z,nan,76.3\n")
+
+        self.assertIsNone(latest_measurement(self.log_path).temperature)
+
+    def test_a_malformed_humidity_still_raises(self):
+        self.log_path.write_text("2026-08-22T21:30:00.000Z,6.41,----\n")
+
+        with self.assertRaises(ValueError):
+            latest_measurement(self.log_path)
+
+    def test_temperature_defaults_to_missing(self):
+        # the closure tests construct Measurement without a temperature
+        self.assertIsNone(Measurement(timestamp=datetime.now(UTC), humidity=50.0).temperature)

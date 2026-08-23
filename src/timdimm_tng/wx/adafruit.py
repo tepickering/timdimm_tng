@@ -15,6 +15,10 @@ MAX_MEASUREMENT_AGE = timedelta(minutes=10)
 class Measurement:
     timestamp: datetime
     humidity: float
+    #: Ambient temperature in Celsius, or ``None`` when the log's temperature field is unusable.
+    #: Optional because this module sits on the roof-safety path, which needs only the humidity:
+    #: a junk temperature must not stop a readable humidity from reaching the closure check.
+    temperature: float | None = None
 
 
 def _last_nonempty_line(path):
@@ -40,7 +44,7 @@ def _last_nonempty_line(path):
 
 
 def latest_measurement(path=None):
-    """Return timestamp and relative humidity from the final nonempty CSV row."""
+    """Return timestamp, relative humidity and temperature from the final nonempty CSV row."""
     path = Path.home() / "adafruit.csv" if path is None else Path(path)
     line = _last_nonempty_line(path)
 
@@ -67,7 +71,19 @@ def latest_measurement(path=None):
 
     if not math.isfinite(humidity):
         raise ValueError(f"Invalid Adafruit humidity value: {row[2]!r}")
-    return Measurement(timestamp=timestamp.astimezone(UTC), humidity=humidity)
+
+    # deliberately lenient, unlike the humidity above -- see Measurement.temperature
+    try:
+        temperature = float(row[1])
+    except ValueError:
+        temperature = None
+    else:
+        if not math.isfinite(temperature):
+            temperature = None
+
+    return Measurement(
+        timestamp=timestamp.astimezone(UTC), humidity=humidity, temperature=temperature
+    )
 
 
 def latest_humidity(path=None):
