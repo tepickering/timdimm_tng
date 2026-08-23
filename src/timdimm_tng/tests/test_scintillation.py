@@ -13,6 +13,8 @@ import pytest
 from astropy.time import Time
 
 from timdimm_tng.scintillation import (
+    CONDENSATION_THROUGHPUT,
+    condensation_likely,
     ACF1_CENSOR_THRESHOLD,
     CSV_COLUMNS,
     CSV_HEADER,
@@ -838,3 +840,25 @@ def test_adding_gain_rotates_a_pre_gain_file(tmp_path):
     rotated = [p for p in tmp_path.iterdir() if p.name.startswith("scintillation.csv.")]
     assert len(rotated) == 1
     assert rotated[0].read_text().startswith(old_header)
+
+
+def test_a_dewed_throughput_warns():
+    # 2026-08-22 bottomed out at 0.08 with the bright aperture still at full flux
+    assert condensation_likely(0.08)
+
+
+def test_a_clean_throughput_does_not_warn():
+    # the dry-night range across targets, 0.62 (Fomalhaut) to 0.70 (Canopus)
+    for value in (0.62, 0.686, 0.70):
+        assert not condensation_likely(value)
+
+
+def test_the_threshold_itself_does_not_warn():
+    # the constant is the floor of the acceptable band, not the top of the warning one
+    assert not condensation_likely(CONDENSATION_THROUGHPUT)
+
+
+def test_a_missing_throughput_is_not_a_warning():
+    # throughput() returns NaN when an aperture sums to zero, which is a failed measurement rather
+    # than evidence about the optics. Warning on it would cry dew every time a cube went bad.
+    assert not condensation_likely(float("nan"))

@@ -31,7 +31,13 @@ from timdimm_tng.exposure import (
     PROBE_THRESHOLD,
     select_exptime,
 )
-from timdimm_tng.scintillation import ensure_header, format_row, scintillation_stats
+from timdimm_tng.scintillation import (
+    CONDENSATION_THROUGHPUT,
+    condensation_likely,
+    ensure_header,
+    format_row,
+    scintillation_stats,
+)
 
 
 log = logging.getLogger("timDIMM")
@@ -146,6 +152,14 @@ try:
         f"Throughput: {scint['throughput']:.3f}; scint index: {scint['scint_index_raw']:.3f}; "
         f"tau_motion: {scint['tau_motion_ms']:.2f} ms; kept {scint['n_kept']}/{scint['n_frames']}"
     )
+    # The prism aperture dewing while the clear one holds its flux is the earliest sign the site
+    # gets that condensation is starting. It shows up in the seeing analysis stream in the GUI.
+    if condensation_likely(scint['throughput']):
+        log.warning(
+            f"Prism throughput {scint['throughput']:.3f} is below "
+            f"{CONDENSATION_THROUGHPUT:.2f}: condensation is likely forming on the optics. "
+            f"Sensors may not have flagged this yet."
+        )
 except Exception as e:
     log.error(f"Scintillation analysis failed: {e}")
 
