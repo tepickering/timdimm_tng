@@ -55,7 +55,7 @@ src/timdimm_tng/
 
 - **analyze_cube.py**: Image processing pipeline using scikit-image and photutils. Calculates seeing via image moments (`moments()`) and DIMM algorithms (`seeing()`, `timdimm_seeing()`, `hdimm_calc()`). Supports both 2-aperture timDIMM and 3-aperture Hartmann-DIMM modes. Uses multiprocessing with shared memory for parallel frame analysis.
 - **ox_wagon.py**: Implements serial protocol to control dome enclosure (open/close/status). Uses hex-encoded commands with two's complement checksums. Has built-in power outage delay (2 min) and watchdog timer (10 min).
-- **wx/check_wx.py**: Aggregates weather from SALT and SAAO IO sources. Operational limits: humidity < 90%, wind < 45 knots. Returns a checks dict with boolean pass/fail per condition.
+- **wx/check_wx.py**: Aggregates weather from SALT and SAAO IO sources. Operational limits: humidity < 90%, wind < 45 km/h. Returns a checks dict with boolean pass/fail per condition.
 - **indi.py**: Uses subprocess to call `indi_getprop`/`indi_setprop` CLI tools. `INDI_Camera` wraps camera operations (exposure, streaming, recording in SER/OGV/MJPEG/RAW modes).
 - **scheduler.py**: Generates Ekos scheduler jobs from star list catalogs using XML templates and xmltodict.
 
