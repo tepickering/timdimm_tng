@@ -14,8 +14,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
-from timdimm_tng.scintillation import throughput_level
+from timdimm_tng.csv_tail import last_csv_row
+from timdimm_tng.scintillation import CLOSURE_THROUGHPUT, throughput_level
 from timdimm_tng.wx.adafruit import latest_measurement, measurement_is_stale
+from timdimm_tng.wx.dewing import THROUGHPUT_MAX_AGE, humidity_is_warning
 from timdimm_tng.timdimm_startstop import timdimm_start, timdimm_stop
 
 app = FastAPI(title="timDIMM Web Interface")
@@ -27,11 +29,6 @@ SEEING_TXT = Path.home() / "seeing.txt"
 ADAFRUIT_FILE = Path.home() / "adafruit.csv"
 SCINTILLATION_FILE = Path.home() / "scintillation.csv"
 
-#: How old the last cube may be before its throughput is shown as stale. Cubes land every ~40 s
-#: while observing, but slews and target changes open gaps of several minutes, and the file stops
-#: growing entirely between nights. Generous enough not to cry wolf mid-schedule, short enough that
-#: a value left over from hours ago never reads as the current state of the optics.
-THROUGHPUT_MAX_AGE = timedelta(minutes=15)
 LOG_FILES = {
     "oxwagon": Path.home() / "ox_wagon.log",
     "seeing": Path.home() / "timdimm.log",
@@ -291,7 +288,7 @@ async function fetchConditions() {
       const age = fmtAge(s.age) + (s.stale ? " \u2014 stale" : "");
       row("SHT45 temperature", s.temperature == null ? "\u2014" : s.temperature.toFixed(2) + " \u00b0C",
           "", age, s.stale);
-      row("SHT45 humidity", s.humidity.toFixed(1) + " %", "", age, s.stale);
+      row("SHT45 humidity", s.humidity.toFixed(1) + " %", s.stale ? "" : (s.warning ? "warn" : ""), age, s.stale);
     } else {
       row("SHT45", "unavailable", "alert", "", false);
     }
@@ -300,7 +297,7 @@ async function fetchConditions() {
     if (t) {
       // a stale reading is greyed out whatever its value: it describes the optics as they were,
       // not as they are, and colouring it would assert something we cannot see
-      const cls = t.stale ? "" : (t.level === "severe" ? "alert" : t.level === "warning" ? "warn" : "");
+      const cls = t.stale ? "" : (t.level === "severe" || t.closes ? "alert" : t.level === "warning" ? "warn" : "");
       const shown = t.value == null ? "\u2014" : t.value.toFixed(3);
       const label = "Prism throughput" + (t.target ? " (" + t.target + ")" : "");
       row(label, shown, cls, fmtAge(t.age) + (t.stale ? " \u2014 stale" : ""), t.stale);
@@ -458,51 +455,6 @@ async def seeing():
     return JSONResponse({"latest": latest, "history": history})
 
 
-def _last_csv_row(path):
-    """
-    The last complete data row of a CSV, as a dict keyed by column.
-
-    Both files this reads are appended to while the page polls them, so the final line is regularly
-    half written. Such a line is skipped in favour of the one before it rather than returned with
-    missing fields, and anything unreadable comes back as ``None`` -- the page must keep rendering
-    whatever the loggers are doing.
-
-    Parameters
-    ----------
-    path : ~pathlib.Path
-        The CSV to read.
-
-    Returns
-    -------
-    dict or None
-        The last complete row, or ``None`` if the file is absent, empty, header-only, or holds no
-        complete row.
-    """
-    path = Path(path)
-    if not path.exists():
-        return None
-
-    try:
-        with path.open() as fp:
-            header = fp.readline().strip()
-        if not header:
-            return None
-        result = subprocess.run(
-            ["tail", "-5", str(path)], capture_output=True, text=True, timeout=5,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-    columns = header.split(",")
-    reader = csv.DictReader(io.StringIO(header + "\n" + result.stdout), fieldnames=columns)
-    complete = [
-        row for row in reader
-        if row.get(columns[0]) != columns[0]                     # skip the header if tail caught it
-        and None not in row.values() and None not in row         # no short row, no extra fields
-    ]
-    return dict(complete[-1]) if complete else None
-
-
 def _sht45_conditions(now):
     """The last SHT45 reading, or ``None`` if the log cannot be read."""
     try:
@@ -515,12 +467,13 @@ def _sht45_conditions(now):
         "time": measurement.timestamp.isoformat(),
         "age": (now - measurement.timestamp).total_seconds(),
         "stale": measurement_is_stale(measurement.timestamp, now=now),
+        "warning": humidity_is_warning(measurement.humidity),
     }
 
 
 def _throughput_conditions(now):
     """The last cube's prism throughput and its severity band, or ``None``."""
-    row = _last_csv_row(SCINTILLATION_FILE)
+    row = last_csv_row(SCINTILLATION_FILE)
     if row is None:
         return None
 
@@ -539,6 +492,7 @@ def _throughput_conditions(now):
     return {
         "value": value,
         "level": None if value is None else throughput_level(value),
+        "closes": value is not None and value <= CLOSURE_THROUGHPUT,
         "target": row.get("target"),
         "time": stamp.isoformat(),
         "age": (now - stamp).total_seconds(),

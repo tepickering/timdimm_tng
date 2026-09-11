@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from timdimm_tng import webgui
+from timdimm_tng.csv_tail import last_csv_row
 
 
 class TestLastCsvRow(unittest.TestCase):
@@ -26,33 +27,33 @@ class TestLastCsvRow(unittest.TestCase):
         self.path.write_text("time,target,throughput\na,Atria,0.69\nb,Achernar,0.34\n")
 
         self.assertEqual(
-            webgui._last_csv_row(self.path),
+            last_csv_row(self.path),
             {"time": "b", "target": "Achernar", "throughput": "0.34"},
         )
 
     def test_a_missing_file_is_not_an_error(self):
-        self.assertIsNone(webgui._last_csv_row(self.path))
+        self.assertIsNone(last_csv_row(self.path))
 
     def test_a_header_only_file_has_no_row(self):
         self.path.write_text("time,target,throughput\n")
 
-        self.assertIsNone(webgui._last_csv_row(self.path))
+        self.assertIsNone(last_csv_row(self.path))
 
     def test_an_empty_file_has_no_row(self):
         self.path.write_text("")
 
-        self.assertIsNone(webgui._last_csv_row(self.path))
+        self.assertIsNone(last_csv_row(self.path))
 
     def test_a_half_written_final_line_is_skipped_for_the_one_before_it(self):
         # the loggers append while the page polls, so a torn final line is expected, not exotic
         self.path.write_text("time,target,throughput\na,Atria,0.69\nb,Ach")
 
-        self.assertEqual(webgui._last_csv_row(self.path)["throughput"], "0.69")
+        self.assertEqual(last_csv_row(self.path)["throughput"], "0.69")
 
     def test_a_torn_line_with_nothing_before_it_has_no_row(self):
         self.path.write_text("time,target,throughput\nb,Ach")
 
-        self.assertIsNone(webgui._last_csv_row(self.path))
+        self.assertIsNone(last_csv_row(self.path))
 
 
 class TestConditions(unittest.TestCase):
@@ -102,6 +103,13 @@ class TestConditions(unittest.TestCase):
         self.write_sht45(age_minutes=9)
         self.assertFalse(webgui._conditions(now=self.now)["sht45"]["stale"])
 
+    def test_sht45_humidity_in_the_warning_zone_is_flagged(self):
+        # the 80% zone the dewing protocol warns in, well under the 90% closure limit
+        self.write_sht45(age_minutes=0, humidity="81.7")
+        self.assertTrue(webgui._conditions(now=self.now)["sht45"]["warning"])
+        self.write_sht45(age_minutes=0, humidity="76.3")
+        self.assertFalse(webgui._conditions(now=self.now)["sht45"]["warning"])
+
     def test_a_missing_sht45_log_reports_nothing_rather_than_failing(self):
         self.assertIsNone(webgui._conditions(now=self.now)["sht45"])
 
@@ -123,6 +131,12 @@ class TestConditions(unittest.TestCase):
         self.write_throughput(age_minutes=0, value="0.08")
 
         self.assertEqual(webgui._conditions(now=self.now)["throughput"]["level"], "severe")
+
+    def test_a_throughput_at_the_closure_threshold_is_flagged(self):
+        self.write_throughput(age_minutes=0, value="0.2")
+        self.assertTrue(webgui._conditions(now=self.now)["throughput"]["closes"])
+        self.write_throughput(age_minutes=0, value="0.34")
+        self.assertFalse(webgui._conditions(now=self.now)["throughput"]["closes"])
 
     def test_an_old_throughput_is_marked_stale(self):
         self.write_throughput(age_minutes=16)
