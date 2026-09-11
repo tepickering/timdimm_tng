@@ -37,6 +37,19 @@ from timdimm_tng.wx.adafruit import (
     measurement_is_stale,
     measurement_requires_closure,
 )
+from timdimm_tng.wx.dewing import (
+    DEW_WARNING_HUMIDITY,
+    REOPEN_DRY_PERIOD,
+    REOPEN_HUMIDITY,
+    DewingState,
+    clear_state,
+    humidity_is_warning,
+    latest_throughput,
+    load_state,
+    save_state,
+    throughput_requires_closure,
+    update_reopen,
+)
 
 
 bus = sdbus.sd_bus_open_user()
@@ -122,6 +135,9 @@ except Exception as e:
     log.error(f"Can't get current conditions: {e}")
     open_ok = False
 
+# the SHT45 humidity that the dewing hold below may use: None unless the reading is fresh
+sht45_humidity = None
+
 try:
     adafruit_measurement = latest_measurement()
     adafruit_humidity = adafruit_measurement.humidity
@@ -132,15 +148,69 @@ try:
         log.warning(f"SHT45 measurement is stale: age={age_minutes:.1f} minutes")
         wx_message += f"SHT45 data is {age_minutes:.1f} minutes old and ignored; "
     elif measurement_requires_closure(adafruit_measurement, now=now):
+        sht45_humidity = adafruit_humidity
         open_ok = False
         log.warning(f"SHT45 humidity is unsafe: RH={adafruit_humidity:.1f}% is at or above {HUMIDITY_LIMIT:.1f}%")
         wx_message += f"SHT45 RH={adafruit_humidity:.1f}% is too high; "
+    elif humidity_is_warning(adafruit_humidity):
+        # the prism dews from about here on, well under the closure limit: the throughput check
+        # below is what acts on it, this only says so
+        sht45_humidity = adafruit_humidity
+        log.warning(
+            f"SHT45 RH={adafruit_humidity:.1f}% is at or above {DEW_WARNING_HUMIDITY:.0f}%: "
+            f"the prism may start dewing"
+        )
+        wx_message += f"SHT45 RH={adafruit_humidity:.1f}% is in the dewing warning zone; "
     else:
+        sht45_humidity = adafruit_humidity
         log.info(f"SHT45 humidity safety check passed: RH={adafruit_humidity:.1f}%")
         wx_message += f"SHT45 RH={adafruit_humidity:.1f}% is safe; "
 except (OSError, UnicodeError, ValueError) as e:
     log.warning(f"Can't read SHT45 humidity: {e}")
     wx_message += "SHT45 humidity unavailable and ignored; "
+
+# Dewing protocol: the prism aperture losing its light is the one direct measurement of condensation
+# on the optics, and it shows up while both humidity sensors still read under their limits. A
+# throughput at or below the closure threshold shuts the roof; it then stays shut until SALT and the
+# SHT45 have both read dry for a sustained period, since the humidity limits alone reopened onto a
+# still-wet prism on 2026-08-31.
+dewing_file = Path.home() / "DEWING"
+try:
+    dewing = load_state(dewing_file)
+    reading = latest_throughput(Path.home() / "scintillation.csv")
+    if dewing is None and throughput_requires_closure(reading):
+        dewing = DewingState(closed_at=datetime.now(UTC), throughput=reading.value, target=reading.target)
+        save_state(dewing, dewing_file)
+        log.warning(
+            f"Prism throughput {reading.value:.3f} on {reading.target} says the optics are dewing. Closing."
+        )
+
+    if dewing is not None:
+        salt_humidity = None
+        try:
+            if wx["SALT"]["Valid"]:
+                salt_humidity = float(wx["SALT"]["Rel_Hum"])
+        except (KeyError, NameError, TypeError, ValueError):
+            pass
+        dewing, may_reopen = update_reopen(dewing, salt_humidity, sht45_humidity)
+        if may_reopen:
+            clear_state(dewing_file)
+            log.info(
+                f"Both humidity sensors have read {REOPEN_HUMIDITY:.0f}% or below for "
+                f"{REOPEN_DRY_PERIOD.total_seconds() / 60:.0f} minutes. Dewing hold lifted."
+            )
+        else:
+            save_state(dewing, dewing_file)
+            open_ok = False
+            if dewing.dry_since is None:
+                progress = "waiting for both sensors to read dry"
+            else:
+                dry_minutes = (datetime.now(UTC) - dewing.dry_since).total_seconds() / 60
+                progress = f"dry for {dry_minutes:.0f} of {REOPEN_DRY_PERIOD.total_seconds() / 60:.0f} minutes"
+            log.info(f"Dewing hold since {dewing.closed_at.isoformat(timespec='minutes')}: {progress}")
+            wx_message += f"Prism dewed (throughput {dewing.throughput:.2f}), {progress}; "
+except Exception as e:
+    log.warning(f"Dewing check failed: {e}")
 
 # set the safety limit to nautical twilight, -12 degrees.
 # needs to be dark enough for autoguiding to be happy.

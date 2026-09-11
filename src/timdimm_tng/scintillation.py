@@ -84,6 +84,14 @@ CONDENSATION_THROUGHPUT = 0.5
 SEVERE_CONDENSATION_THROUGHPUT = 0.1
 
 
+#: Prism throughput at or below which the roof closes to keep the optics from soaking. It sits
+#: between the warning and severe bands: by 0.2 the faint aperture has lost two thirds of its light
+#: and the three events of 2026-08-30, 09-07 and 09-08 all went on to the 0.02-0.13 floor from there.
+#: No clean cube in ~9000 archived ones reads below 0.5, so a single reading is enough. The reopening
+#: side lives in `timdimm_tng.wx.dewing`.
+CLOSURE_THROUGHPUT = 0.2
+
+
 def throughput_level(value):
     """
     Severity band for a throughput reading, for display.

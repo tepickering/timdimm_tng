@@ -32,12 +32,15 @@ from timdimm_tng.exposure import (
     select_exptime,
 )
 from timdimm_tng.scintillation import (
+    CLOSURE_THROUGHPUT,
     CONDENSATION_THROUGHPUT,
     condensation_likely,
     ensure_header,
     format_row,
     scintillation_stats,
 )
+from timdimm_tng.wx.adafruit import latest_measurement, measurement_is_stale
+from timdimm_tng.wx.dewing import DEW_WARNING_HUMIDITY, humidity_is_warning
 
 
 log = logging.getLogger("timDIMM")
@@ -154,7 +157,12 @@ try:
     )
     # The prism aperture dewing while the clear one holds its flux is the earliest sign the site
     # gets that condensation is starting. It shows up in the seeing analysis stream in the GUI.
-    if condensation_likely(scint['throughput']):
+    if scint['throughput'] <= CLOSURE_THROUGHPUT:
+        log.warning(
+            f"Prism throughput {scint['throughput']:.3f} is at or below {CLOSURE_THROUGHPUT:.2f}: "
+            f"the roof will close until both humidity sensors have read dry for a sustained period."
+        )
+    elif condensation_likely(scint['throughput']):
         log.warning(
             f"Prism throughput {scint['throughput']:.3f} is below "
             f"{CONDENSATION_THROUGHPUT:.2f}: condensation is likely forming on the optics. "
@@ -162,6 +170,17 @@ try:
         )
 except Exception as e:
     log.error(f"Scintillation analysis failed: {e}")
+
+# the same warning zone status.py logs, so it shows in whichever stream the GUI has up
+try:
+    sht45 = latest_measurement()
+    if not measurement_is_stale(sht45.timestamp) and humidity_is_warning(sht45.humidity):
+        log.warning(
+            f"SHT45 RH={sht45.humidity:.1f}% is at or above {DEW_WARNING_HUMIDITY:.0f}%: "
+            f"the prism may start dewing"
+        )
+except Exception as e:
+    log.warning(f"Can't read SHT45 humidity: {e}")
 
 # The lower bound matters as much as the upper one. A degenerate cube used to yield a baseline of
 # exactly zero and so a seeing of exactly 0.00, which passed `< 10.0` and was written as real data:
